@@ -5,6 +5,7 @@ go 1.24.3
 require github.com/c-bata/go-prompt v0.2.6
 
 require (
+	github.com/alecthomas/participle/v2 v2.1.4 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

@@ -7,17 +7,17 @@ import (
 	"github.com/ymtdzzz/otelgen/telemetry"
 )
 
-func handleListCommand(args []string) {
-	if len(args) != 1 {
-		println("Usage: list traces")
+func handleListCommand(cmd *ListCommand) {
+	if cmd.Target == nil {
+		fmt.Println("No target specified for list command.")
 		return
 	}
 
-	switch args[0] {
+	switch *cmd.Target {
 	case "traces":
 		listTraces()
 	default:
-		println("Unknown list command:", args[0])
+		fmt.Printf("Unknown target type for list command: %s\n", *cmd.Target)
 	}
 }
 
@@ -50,6 +50,14 @@ func printSpan(span *telemetry.Span, depth int) {
 	if len(span.Attributes) > 0 {
 		fmt.Printf("%s  Attributes:\n", indent)
 		for key, value := range span.Attributes {
+			fmt.Printf("%s    %s: %s\n", indent, key, value)
+		}
+	}
+
+	if span.Resource != nil {
+		fmt.Printf("%s  Resource:\n", indent)
+		fmt.Printf("%s    Name: %s\n", indent, span.Resource.Name)
+		for key, value := range span.Resource.Attributes {
 			fmt.Printf("%s    %s: %s\n", indent, key, value)
 		}
 	}
