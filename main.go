@@ -19,13 +19,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defaultProvider, err := telemetry.CreateDefaultTracerProvider(exporter, nil)
-	if err != nil {
-		panic(err)
-	}
 
-	telemetry.InitTracerManager(defaultProvider, exporter, nil)
-	go func() {
+	telemetry.InitTracerManager(exporter, nil)
+	defer func() {
 		if err := telemetry.GetTracerManager().Shutdown(context.Background()); err != nil {
 			fmt.Printf("Error shutting down tracer manager: %v\n", err)
 		}
@@ -33,7 +29,7 @@ func main() {
 
 	telemetry.InitStore()
 
-	fmt.Println("OpenTelemetry Trace CLI (type 'exit' to quit)")
+	fmt.Println("OpenTelemetry CLI generator (type 'exit' to quit)")
 	p := prompt.New(executor.Executor, completer.Completer, prompt.OptionPrefix("otelgen> "))
 	p.Run()
 }

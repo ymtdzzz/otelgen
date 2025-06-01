@@ -150,12 +150,8 @@ func SendAllTraces() {
 
 	exporter := GetTracerManager().GetExporter()
 	processor := GetTracerManager().GetSpanProcessor()
-	defaultProvider, err := CreateDefaultTracerProvider(exporter, processor)
-	if err != nil {
-		panic(err)
-	}
 
-	InitTracerManager(defaultProvider, exporter, processor)
+	InitTracerManager(exporter, processor)
 }
 
 // processSpan handles span creation with duration distribution:

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/sdk/resource"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
@@ -28,12 +27,16 @@ type TracerManager struct {
 var tracerManager *TracerManager
 
 // InitTracerManager initializes the global tracer manager
-func InitTracerManager(defaultProvider *sdktrace.TracerProvider, exporter sdktrace.SpanExporter, processor sdktrace.SpanProcessor) {
+func InitTracerManager(exporter sdktrace.SpanExporter, processor sdktrace.SpanProcessor) {
 	if tracerManager != nil {
 		if err := tracerManager.Shutdown(context.Background()); err != nil {
 			fmt.Printf("Error shutting down tracer manager: %v\n", err)
 		}
 	}
+	defaultProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSyncer(exporter),
+		sdktrace.WithResource(sdkresource.Default()),
+	)
 	tracerManager = &TracerManager{
 		providers:       make(map[string]*sdktrace.TracerProvider),
 		defaultProvider: defaultProvider,
@@ -117,17 +120,4 @@ func (tm *TracerManager) Shutdown(ctx context.Context) error {
 	}
 
 	return lastErr
-}
-
-// CreateDefaultTracerProvider creates a default tracer provider
-func CreateDefaultTracerProvider(exporter sdktrace.SpanExporter, processor sdktrace.SpanProcessor) (*sdktrace.TracerProvider, error) {
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSyncer(exporter),
-		sdktrace.WithResource(resource.Default()),
-	)
-	if processor != nil {
-		tp.RegisterSpanProcessor(processor)
-	}
-
-	return tp, nil
 }

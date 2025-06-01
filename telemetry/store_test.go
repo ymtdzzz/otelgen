@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/attribute"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
@@ -144,10 +143,7 @@ func TestStore(t *testing.T) {
 func TestSendAllTraces(t *testing.T) {
 	recorder := tracetest.NewSpanRecorder()
 
-	tp := sdktrace.NewTracerProvider()
-	tp.RegisterSpanProcessor(recorder)
-
-	InitTracerManager(tp, tracetest.NewNoopExporter(), recorder)
+	InitTracerManager(tracetest.NewNoopExporter(), recorder)
 	t.Cleanup(func() {
 		if err := GetTracerManager().Shutdown(context.Background()); err != nil {
 			t.Fatalf("Failed to shutdown tracer manager: %v", err)
