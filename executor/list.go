@@ -2,6 +2,7 @@ package executor
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/ymtdzzz/otelgen/telemetry"
@@ -49,16 +50,28 @@ func printSpan(span *telemetry.Span, depth int) {
 
 	if len(span.Attributes) > 0 {
 		fmt.Printf("%s  Attributes:\n", indent)
-		for key, value := range span.Attributes {
-			fmt.Printf("%s    %s: %s\n", indent, key, value)
+		keys := make([]string, 0, len(span.Attributes))
+		for key := range span.Attributes {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		for _, key := range keys {
+			fmt.Printf("%s    %s: %s\n", indent, key, span.Attributes[key])
 		}
 	}
 
 	if span.Resource != nil {
 		fmt.Printf("%s  Resource:\n", indent)
 		fmt.Printf("%s    Name: %s\n", indent, span.Resource.Name)
-		for key, value := range span.Resource.Attributes {
-			fmt.Printf("%s    %s: %s\n", indent, key, value)
+		keys := make([]string, 0, len(span.Resource.Attributes))
+		for key := range span.Resource.Attributes {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		for _, key := range keys {
+			fmt.Printf("%s    %s: %s\n", indent, key, span.Resource.Attributes[key])
 		}
 	}
 

@@ -1,6 +1,7 @@
 package completer
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/c-bata/go-prompt"
@@ -8,7 +9,7 @@ import (
 	"github.com/ymtdzzz/otelgen/telemetry"
 )
 
-var CommandSuggestions = map[string][]prompt.Suggest{
+var commandSuggestions = map[string][]prompt.Suggest{
 	"": {
 		{Text: "create", Description: "Create a new signal"},
 		{Text: "send", Description: "Send all traces to the collector"},
@@ -43,7 +44,7 @@ type completerContext struct {
 
 func (c *completerContext) completeCreate() []prompt.Suggest {
 	if c.parsed.Create.Type == nil {
-		return prompt.FilterHasPrefix(CommandSuggestions["create_type"], c.currentWord, false)
+		return prompt.FilterHasPrefix(commandSuggestions["create_type"], c.currentWord, false)
 	}
 	switch *c.parsed.Create.Type {
 	case "span":
@@ -57,40 +58,24 @@ func (c *completerContext) completeCreate() []prompt.Suggest {
 func (c *completerContext) completeCreateSpan() []prompt.Suggest {
 	if c.parsed.Create.Trace == nil && c.parsed.Create.ParentSpan == nil && c.parsed.Create.Name != nil {
 		if strings.Contains(c.inputText, "in trace ") {
-			var suggestions []prompt.Suggest
-			for traceName := range telemetry.GetTraces() {
-				suggestions = append(suggestions, prompt.Suggest{Text: traceName})
-			}
-			return prompt.FilterHasPrefix(suggestions, c.currentWord, false)
+			return prompt.FilterHasPrefix(convertTracesToSuggestions(), c.currentWord, false)
 		} else if strings.Contains(c.inputText, "in ") {
-			return prompt.FilterHasPrefix(CommandSuggestions["create_in_trace"], c.currentWord, false)
+			return prompt.FilterHasPrefix(commandSuggestions["create_in_trace"], c.currentWord, false)
 		}
 		if strings.Contains(c.inputText, "with parent ") {
-			var suggestions []prompt.Suggest
-			for spanName := range telemetry.GetSpans() {
-				suggestions = append(suggestions, prompt.Suggest{Text: spanName})
-			}
-			return prompt.FilterHasPrefix(suggestions, c.currentWord, false)
+			return prompt.FilterHasPrefix(convertSpansToSuggestions(), c.currentWord, false)
 		} else if strings.Contains(c.inputText, "with ") {
-			return prompt.FilterHasPrefix(CommandSuggestions["create_with_parent"], c.currentWord, false)
+			return prompt.FilterHasPrefix(commandSuggestions["create_with_parent"], c.currentWord, false)
 		}
-		return prompt.FilterHasPrefix(CommandSuggestions["create_in_or_with"], c.currentWord, false)
+		return prompt.FilterHasPrefix(commandSuggestions["create_in_or_with"], c.currentWord, false)
 	}
 	// create span span-a in trace tra...
 	if c.parsed.Create.Trace != nil && c.partialInput[len(c.partialInput)-2] == "trace" && !strings.HasSuffix(c.inputText, " ") {
-		var suggestions []prompt.Suggest
-		for traceName := range telemetry.GetTraces() {
-			suggestions = append(suggestions, prompt.Suggest{Text: traceName})
-		}
-		return prompt.FilterHasPrefix(suggestions, c.currentWord, false)
+		return prompt.FilterHasPrefix(convertTracesToSuggestions(), c.currentWord, false)
 	}
 	// create span span-b with parent span sp...
 	if c.parsed.Create.ParentSpan != nil && c.partialInput[len(c.partialInput)-2] == "parent" && !strings.HasSuffix(c.inputText, " ") {
-		var suggestions []prompt.Suggest
-		for spanName := range telemetry.GetSpans() {
-			suggestions = append(suggestions, prompt.Suggest{Text: spanName})
-		}
-		return prompt.FilterHasPrefix(suggestions, c.currentWord, false)
+		return prompt.FilterHasPrefix(convertSpansToSuggestions(), c.currentWord, false)
 	}
 	if c.parsed.Create.Trace != nil || c.parsed.Create.ParentSpan != nil {
 		suggestions := []prompt.Suggest{}
@@ -103,14 +88,14 @@ func (c *completerContext) completeCreateSpan() []prompt.Suggest {
 		}
 		if c.parsed.Create.Resource == nil {
 			if strings.Contains(c.inputText, "resource ") {
-				suggestions := []prompt.Suggest{}
-				for resourceName := range telemetry.GetResources() {
-					suggestions = append(suggestions, prompt.Suggest{Text: resourceName})
-				}
-				return prompt.FilterHasPrefix(suggestions, c.currentWord, false)
+				return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
 			} else {
 				suggestions = append(suggestions, prompt.Suggest{Text: "resource", Description: "Set a resource for the span"})
 			}
+		}
+		// create span span-a in trace my-trace resource res...
+		if c.parsed.Create.Resource != nil && c.partialInput[len(c.partialInput)-2] == "resource" && !strings.HasSuffix(c.inputText, " ") {
+			return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
 		}
 
 		return prompt.FilterHasPrefix(suggestions, c.currentWord, false)
@@ -133,7 +118,7 @@ func (c *completerContext) completeCreateResource() []prompt.Suggest {
 
 func (c *completerContext) completeList() []prompt.Suggest {
 	if c.parsed.List.Target == nil {
-		return prompt.FilterHasPrefix(CommandSuggestions["list"], c.currentWord, false)
+		return prompt.FilterHasPrefix(commandSuggestions["list"], c.currentWord, false)
 	}
 	return []prompt.Suggest{}
 }
@@ -152,11 +137,11 @@ func Completer(d prompt.Document) []prompt.Suggest {
 	}
 
 	if len(cctx.partialInput) == 0 {
-		return CommandSuggestions[""]
+		return commandSuggestions[""]
 	}
 
 	if !strings.Contains(text, " ") {
-		return prompt.FilterHasPrefix(CommandSuggestions[""], text, false)
+		return prompt.FilterHasPrefix(commandSuggestions[""], text, false)
 	}
 
 	if cctx.parsed == nil {
@@ -171,4 +156,37 @@ func Completer(d prompt.Document) []prompt.Suggest {
 	}
 
 	return []prompt.Suggest{}
+}
+
+func convertTracesToSuggestions() []prompt.Suggest {
+	var suggestions []prompt.Suggest
+	for traceName := range telemetry.GetTraces() {
+		suggestions = append(suggestions, prompt.Suggest{Text: traceName})
+	}
+	sort.Slice(suggestions, func(i, j int) bool {
+		return suggestions[i].Text < suggestions[j].Text
+	})
+	return suggestions
+}
+
+func convertSpansToSuggestions() []prompt.Suggest {
+	var suggestions []prompt.Suggest
+	for spanName := range telemetry.GetSpans() {
+		suggestions = append(suggestions, prompt.Suggest{Text: spanName})
+	}
+	sort.Slice(suggestions, func(i, j int) bool {
+		return suggestions[i].Text < suggestions[j].Text
+	})
+	return suggestions
+}
+
+func convertResourcesToSuggestions() []prompt.Suggest {
+	var suggestions []prompt.Suggest
+	for resourceName := range telemetry.GetResources() {
+		suggestions = append(suggestions, prompt.Suggest{Text: resourceName})
+	}
+	sort.Slice(suggestions, func(i, j int) bool {
+		return suggestions[i].Text < suggestions[j].Text
+	})
+	return suggestions
 }

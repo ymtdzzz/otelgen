@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -19,13 +18,17 @@ type TracerManager struct {
 	providers map[string]*sdktrace.TracerProvider
 	// Default tracer provider
 	defaultProvider *sdktrace.TracerProvider
+	// Exporter for all tracer providers
+	exporter sdktrace.SpanExporter
+	// Span processor for all tracer providers
+	processor sdktrace.SpanProcessor
 }
 
 // Global instance of the tracer manager
 var tracerManager *TracerManager
 
 // InitTracerManager initializes the global tracer manager
-func InitTracerManager(defaultProvider *sdktrace.TracerProvider) {
+func InitTracerManager(defaultProvider *sdktrace.TracerProvider, exporter sdktrace.SpanExporter, processor sdktrace.SpanProcessor) {
 	if tracerManager != nil {
 		if err := tracerManager.Shutdown(context.Background()); err != nil {
 			fmt.Printf("Error shutting down tracer manager: %v\n", err)
@@ -34,6 +37,8 @@ func InitTracerManager(defaultProvider *sdktrace.TracerProvider) {
 	tracerManager = &TracerManager{
 		providers:       make(map[string]*sdktrace.TracerProvider),
 		defaultProvider: defaultProvider,
+		exporter:        exporter,
+		processor:       processor,
 	}
 }
 
@@ -46,15 +51,6 @@ func GetTracerManager() *TracerManager {
 func (tm *TracerManager) CreateTracerForResource(resourceName string, res *Resource) (trace.Tracer, error) {
 	if provider, exists := tm.providers[resourceName]; exists {
 		return provider.Tracer("otelgen"), nil
-	}
-
-	ctx := context.Background()
-	exporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithInsecure(),
-		otlptracegrpc.WithEndpoint("localhost:4317"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create exporter: %w", err)
 	}
 
 	resAttrs := []attribute.KeyValue{
@@ -71,9 +67,12 @@ func (tm *TracerManager) CreateTracerForResource(resourceName string, res *Resou
 	)
 
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSyncer(exporter),
+		sdktrace.WithSyncer(tm.exporter),
 		sdktrace.WithResource(r),
 	)
+	if tm.processor != nil {
+		tp.RegisterSpanProcessor(tm.processor)
+	}
 
 	tm.providers[resourceName] = tp
 
@@ -94,6 +93,16 @@ func (tm *TracerManager) GetDefaultTracer() trace.Tracer {
 	return tm.defaultProvider.Tracer("otelgen")
 }
 
+// GetExporter returns the exporter used by the tracer manager
+func (tm *TracerManager) GetExporter() sdktrace.SpanExporter {
+	return tm.exporter
+}
+
+// GetSpanProcessor returns the span processor used by the tracer manager
+func (tm *TracerManager) GetSpanProcessor() sdktrace.SpanProcessor {
+	return tm.processor
+}
+
 // Shutdown closes all tracer providers
 func (tm *TracerManager) Shutdown(ctx context.Context) error {
 	var lastErr error
@@ -111,20 +120,14 @@ func (tm *TracerManager) Shutdown(ctx context.Context) error {
 }
 
 // CreateDefaultTracerProvider creates a default tracer provider
-func CreateDefaultTracerProvider() (*sdktrace.TracerProvider, error) {
-	ctx := context.Background()
-	exporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithInsecure(),
-		otlptracegrpc.WithEndpoint("localhost:4317"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create exporter: %w", err)
-	}
-
+func CreateDefaultTracerProvider(exporter sdktrace.SpanExporter, processor sdktrace.SpanProcessor) (*sdktrace.TracerProvider, error) {
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithSyncer(exporter),
 		sdktrace.WithResource(resource.Default()),
 	)
+	if processor != nil {
+		tp.RegisterSpanProcessor(processor)
+	}
 
 	return tp, nil
 }

@@ -42,23 +42,12 @@ func (c *CreateCommand) Validate() error {
 		if c.Trace != nil && c.ParentSpan != nil {
 			return fmt.Errorf("span cannot have both a trace and a parent span")
 		}
-		if c.Trace != nil {
-			if *c.Trace == "" {
-				return fmt.Errorf("trace name cannot be empty when creating a span")
-			}
-		}
 		if c.ParentSpan != nil {
-			if *c.ParentSpan == "" {
-				return fmt.Errorf("parent span name cannot be empty when creating a span")
-			}
 			if !telemetry.IsSpanExists(*c.ParentSpan) {
 				return fmt.Errorf("parent span '%s' does not exist", *c.ParentSpan)
 			}
 		}
 		if c.Resource != nil {
-			if *c.Resource == "" {
-				return fmt.Errorf("resource name cannot be empty when creating a span")
-			}
 			if !telemetry.IsResourceExists(*c.Resource) {
 				return fmt.Errorf("resource '%s' does not exist", *c.Resource)
 			}

@@ -27,9 +27,12 @@ func handleCreateCommand(cmd *CreateCommand) {
 }
 
 func handleCreateSpan(cmd *CreateCommand) error {
-	if cmd.Trace != nil && !telemetry.IsTraceExists(*cmd.Trace) {
-		trace := telemetry.CreateTrace(*cmd.Trace)
-		fmt.Printf("Created trace: %s\n", trace.Name)
+	if cmd.Trace != nil {
+		trace, exists := telemetry.GetTraces()[*cmd.Trace]
+		if !exists {
+			trace = telemetry.CreateTrace(*cmd.Trace)
+			fmt.Printf("Created trace: %s\n", trace.Name)
+		}
 		span, err := telemetry.AddSpanToTrace(*cmd.Trace, *cmd.Name, convertKeyValuesToMap(cmd.Attrs))
 		if err != nil {
 			return err

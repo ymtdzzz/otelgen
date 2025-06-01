@@ -8,15 +8,23 @@ import (
 	"github.com/ymtdzzz/otelgen/completer"
 	"github.com/ymtdzzz/otelgen/executor"
 	"github.com/ymtdzzz/otelgen/telemetry"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 )
 
 func main() {
-	defaultProvider, err := telemetry.CreateDefaultTracerProvider()
+	exporter, err := otlptracegrpc.New(context.Background(),
+		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithEndpoint("localhost:4317"),
+	)
+	if err != nil {
+		panic(err)
+	}
+	defaultProvider, err := telemetry.CreateDefaultTracerProvider(exporter, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	telemetry.InitTracerManager(defaultProvider)
+	telemetry.InitTracerManager(defaultProvider, exporter, nil)
 	go func() {
 		if err := telemetry.GetTracerManager().Shutdown(context.Background()); err != nil {
 			fmt.Printf("Error shutting down tracer manager: %v\n", err)

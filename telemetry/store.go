@@ -99,6 +99,9 @@ func AddSpanToTrace(traceName, spanName string, attributes map[string]string) (*
 		Name:       spanName,
 		Attributes: attributes,
 	}
+	if trace.RootSpan != nil {
+		return nil, fmt.Errorf("trace %s already has a root span", traceName)
+	}
 	trace.RootSpan = &span
 	store.spans[spanName] = &span
 	return &span, nil
@@ -128,7 +131,6 @@ func SetResourceToSpan(spanName, resourceName string) (*Resource, error) {
 		return nil, fmt.Errorf("resource %s not found", resourceName)
 	}
 	span.Resource = resource
-	store.resources[resourceName] = resource
 	return resource, nil
 
 }
@@ -146,12 +148,14 @@ func SendAllTraces() {
 
 	InitStore()
 
-	defaultProvider, err := CreateDefaultTracerProvider()
+	exporter := GetTracerManager().GetExporter()
+	processor := GetTracerManager().GetSpanProcessor()
+	defaultProvider, err := CreateDefaultTracerProvider(exporter, processor)
 	if err != nil {
 		panic(err)
 	}
 
-	InitTracerManager(defaultProvider)
+	InitTracerManager(defaultProvider, exporter, processor)
 }
 
 // processSpan handles span creation with duration distribution:
