@@ -17,6 +17,8 @@ func handleListCommand(cmd *ListCommand) {
 	switch *cmd.Target {
 	case "traces":
 		listTraces()
+	case "resources":
+		listResources()
 	default:
 		fmt.Printf("Unknown target type for list command: %s\n", *cmd.Target)
 	}
@@ -77,5 +79,45 @@ func printSpan(span *telemetry.Span, depth int) {
 
 	for _, childSpan := range span.Children {
 		printSpan(childSpan, depth+1)
+	}
+}
+
+func listResources() {
+	resources := telemetry.GetResources()
+	if len(resources) == 0 {
+		fmt.Println("No resources available.")
+		return
+	}
+
+	fmt.Printf("Available resources: %d\n", len(resources))
+	fmt.Println("----------------------------------------")
+
+	// Sort resource names for consistent output
+	names := make([]string, 0, len(resources))
+	for name := range resources {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		resource := resources[name]
+		fmt.Printf("Resource: %s\n", name)
+
+		if len(resource.Attributes) == 0 {
+			fmt.Println("  No attributes")
+		} else {
+			fmt.Println("  Attributes:")
+			// Sort attribute keys for consistent output
+			keys := make([]string, 0, len(resource.Attributes))
+			for key := range resource.Attributes {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+
+			for _, key := range keys {
+				fmt.Printf("    %s: %s\n", key, resource.Attributes[key])
+			}
+		}
+		fmt.Println("----------------------------------------")
 	}
 }

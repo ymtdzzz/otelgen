@@ -26,7 +26,7 @@ func captureOutput(f func()) string {
 	return buf.String()
 }
 
-func TestListCommand(t *testing.T) {
+func TestListTraces(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     string
@@ -131,6 +131,106 @@ Trace: trace2
   - Span: span2
     Attributes:
       trace: 2
+----------------------------------------
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupFunc()
+
+			output := captureOutput(func() {
+				Executor(tt.input)
+			})
+
+			assert.Equal(t, tt.want, output)
+		})
+	}
+}
+
+func TestListResources(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		setupFunc func()
+		want      string
+	}{
+		{
+			name:  "list resources with no resources",
+			input: "list resources",
+			setupFunc: func() {
+				telemetry.InitStore()
+			},
+			want: "No resources available.\n",
+		},
+		{
+			name:  "list resources with one resource without attributes",
+			input: "list resources",
+			setupFunc: func() {
+				telemetry.InitStore()
+				telemetry.CreateResource("empty-resource", map[string]string{})
+			},
+			want: `Available resources: 1
+----------------------------------------
+Resource: empty-resource
+  No attributes
+----------------------------------------
+`,
+		},
+		{
+			name:  "list resources with one resource with attributes",
+			input: "list resources",
+			setupFunc: func() {
+				telemetry.InitStore()
+				telemetry.CreateResource("test-resource", map[string]string{
+					"service.name": "test-service",
+					"environment":  "test",
+					"version":      "1.0.0",
+				})
+			},
+			want: `Available resources: 1
+----------------------------------------
+Resource: test-resource
+  Attributes:
+    environment: test
+    service.name: test-service
+    version: 1.0.0
+----------------------------------------
+`,
+		},
+		{
+			name:  "list resources with multiple resources",
+			input: "list resources",
+			setupFunc: func() {
+				telemetry.InitStore()
+
+				telemetry.CreateResource("resource1", map[string]string{
+					"service.name": "service1",
+					"environment":  "prod",
+				})
+
+				telemetry.CreateResource("resource2", map[string]string{
+					"service.name": "service2",
+					"environment":  "staging",
+				})
+
+				telemetry.CreateResource("resource3", map[string]string{})
+			},
+			want: `Available resources: 3
+----------------------------------------
+Resource: resource1
+  Attributes:
+    environment: prod
+    service.name: service1
+----------------------------------------
+Resource: resource2
+  Attributes:
+    environment: staging
+    service.name: service2
+----------------------------------------
+Resource: resource3
+  No attributes
 ----------------------------------------
 `,
 		},

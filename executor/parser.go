@@ -63,7 +63,7 @@ func (c *CreateCommand) Validate() error {
 
 type ListCommand struct {
 	List   string  `"list"`
-	Target *string `[ @("traces") ]`
+	Target *string `[ @("traces" | "resources") ]`
 }
 
 type SendCommand struct {
