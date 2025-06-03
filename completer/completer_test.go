@@ -140,8 +140,8 @@ func TestCompleteCreateSpan(t *testing.T) {
 		{
 			input: "create span span1 in trace my-trace ",
 			want: []prompt.Suggest{
-				{Text: "attributes", Description: "Add attributes to the span"},
 				{Text: "resource", Description: "Set a resource for the span"},
+				{Text: "attributes", Description: "Add attributes to the span"},
 			},
 		},
 		{
@@ -169,9 +169,7 @@ func TestCompleteCreateSpan(t *testing.T) {
 		},
 		{
 			input: "create span span1 in trace my-trace resource me-resource ",
-			want: []prompt.Suggest{
-				{Text: "attributes", Description: "Add attributes to the span"},
-			},
+			want:  []prompt.Suggest{},
 		},
 		{
 			input: "create span span1 in trace my-trace attributes key=val ",

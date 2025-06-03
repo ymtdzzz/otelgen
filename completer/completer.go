@@ -79,13 +79,6 @@ func (c *completerContext) completeCreateSpan() []prompt.Suggest {
 	}
 	if c.parsed.Create.Trace != nil || c.parsed.Create.ParentSpan != nil {
 		suggestions := []prompt.Suggest{}
-		if c.parsed.Create.Attrs == nil {
-			if strings.Contains(c.inputText, "attributes ") {
-				return []prompt.Suggest{}
-			} else {
-				suggestions = append(suggestions, prompt.Suggest{Text: "attributes", Description: "Add attributes to the span"})
-			}
-		}
 		if c.parsed.Create.Resource == nil {
 			if strings.Contains(c.inputText, "resource ") {
 				return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
@@ -96,6 +89,13 @@ func (c *completerContext) completeCreateSpan() []prompt.Suggest {
 		// create span span-a in trace my-trace resource res...
 		if c.parsed.Create.Resource != nil && c.partialInput[len(c.partialInput)-2] == "resource" && !strings.HasSuffix(c.inputText, " ") {
 			return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
+		}
+		if c.parsed.Create.Attrs == nil {
+			if strings.Contains(c.inputText, "attributes ") || c.parsed.Create.Resource != nil {
+				return []prompt.Suggest{}
+			} else {
+				suggestions = append(suggestions, prompt.Suggest{Text: "attributes", Description: "Add attributes to the span"})
+			}
 		}
 
 		return prompt.FilterHasPrefix(suggestions, c.currentWord, false)
