@@ -232,6 +232,181 @@ func TestCompleteCreateResource(t *testing.T) {
 	}
 }
 
+func TestCompleteSet(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []prompt.Suggest
+	}{
+		{
+			input: "set ",
+			want:  commandSuggestions["set_type"],
+		},
+		{
+			input: "set s",
+			want: []prompt.Suggest{
+				{Text: "span", Description: "Update a span"},
+			},
+		},
+		{
+			input: "set r",
+			want: []prompt.Suggest{
+				{Text: "resource", Description: "Update a resource"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			buf := prompt.NewBuffer()
+			buf.InsertText(tt.input, false, true)
+			doc := buf.Document()
+			got := Completer(*doc)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestCompleteSetSpan(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []prompt.Suggest
+	}{
+		{
+			input: "set span ",
+			want: []prompt.Suggest{
+				{Text: "me-span"},
+				{Text: "my-span"},
+			},
+		},
+		{
+			input: "set span my",
+			want: []prompt.Suggest{
+				{Text: "my-span"},
+			},
+		},
+		{
+			input: "set span my-span ",
+			want:  commandSuggestions["set_span_operations"],
+		},
+		{
+			input: "set span my-span n",
+			want: []prompt.Suggest{
+				{Text: "name", Description: "Set a new name for the span"},
+			},
+		},
+		{
+			input: "set span my-span name ",
+			want:  []prompt.Suggest{},
+		},
+		{
+			input: "set span my-span name new-span-name ",
+			want: []prompt.Suggest{
+				{Text: "resource", Description: "Set a resource for the span"},
+			},
+		},
+		{
+			input: "set span my-span name new-span-name resource ",
+			want: []prompt.Suggest{
+				{Text: "me-resource"},
+				{Text: "my-resource"},
+			},
+		},
+		{
+			input: "set span my-span name new-span-name resource me-resource ",
+			want:  []prompt.Suggest{},
+		},
+		{
+			input: "set span my-span resource my-resource ",
+			want: []prompt.Suggest{
+				{Text: "name", Description: "Set a new name for the span"},
+			},
+		},
+		{
+			input: "set span my-span resource my-resource name ",
+			want:  []prompt.Suggest{},
+		},
+		{
+			input: "set span my-span resource my-resource name new-span-name ",
+			want:  []prompt.Suggest{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			telemetry.InitStore()
+			telemetry.CreateTrace("my-trace")
+			telemetry.CreateResource("my-resource", map[string]string{"key": "value"})
+			telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{"key": "value"})
+			telemetry.SetResourceToSpan("my-span", "my-resource")
+			telemetry.CreateTrace("me-trace")
+			telemetry.CreateResource("me-resource", map[string]string{"key": "value"})
+			telemetry.AddSpanToTrace("me-trace", "me-span", map[string]string{"key": "value"})
+			telemetry.SetResourceToSpan("me-span", "me-resource")
+
+			buf := prompt.NewBuffer()
+			buf.InsertText(tt.input, false, true)
+			doc := buf.Document()
+			got := Completer(*doc)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestCompleteSetResource(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []prompt.Suggest
+	}{
+		{
+			input: "set resource ",
+			want: []prompt.Suggest{
+				{Text: "me-resource"},
+				{Text: "my-resource"},
+			},
+		},
+		{
+			input: "set resource my",
+			want: []prompt.Suggest{
+				{Text: "my-resource"},
+			},
+		},
+		{
+			input: "set resource my-resource ",
+			want:  commandSuggestions["set_resource_operations"],
+		},
+		{
+			input: "set resource my-resource n",
+			want: []prompt.Suggest{
+				{Text: "name", Description: "Set a new name for the resource"},
+			},
+		},
+		{
+			input: "set resource my-resource name ",
+			want:  []prompt.Suggest{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			telemetry.InitStore()
+			telemetry.CreateTrace("my-trace")
+			telemetry.CreateResource("my-resource", map[string]string{"key": "value"})
+			telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{"key": "value"})
+			telemetry.SetResourceToSpan("my-span", "my-resource")
+			telemetry.CreateTrace("me-trace")
+			telemetry.CreateResource("me-resource", map[string]string{"key": "value"})
+			telemetry.AddSpanToTrace("me-trace", "me-span", map[string]string{"key": "value"})
+			telemetry.SetResourceToSpan("me-span", "me-resource")
+
+			buf := prompt.NewBuffer()
+			buf.InsertText(tt.input, false, true)
+			doc := buf.Document()
+			got := Completer(*doc)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestCompleteList(t *testing.T) {
 	tests := []struct {
 		input string
@@ -249,7 +424,9 @@ func TestCompleteList(t *testing.T) {
 		},
 		{
 			input: "list t",
-			want:  commandSuggestions["list"],
+			want: []prompt.Suggest{
+				{Text: "traces", Description: "List all available traces"},
+			},
 		},
 		{
 			input: "list p",

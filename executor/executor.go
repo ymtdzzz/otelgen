@@ -24,6 +24,8 @@ func Executor(input string) {
 		os.Exit(0)
 	case cmd.Create != nil:
 		handleCreateCommand(cmd.Create)
+	case cmd.Set != nil:
+		handleSetCommand(cmd.Set)
 	case cmd.Send != nil:
 		handleSendCommand()
 	case cmd.List != nil:

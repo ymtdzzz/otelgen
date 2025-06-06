@@ -63,3 +63,55 @@ func TestCreateCommandValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestSetCommandValidate(t *testing.T) {
+	tests := []struct {
+		input string
+		want  error
+	}{
+		{
+			input: "set span my-span name new-my-span resource my-resource",
+			want:  nil,
+		},
+		{
+			input: "set span my-span resource my-resource name new-my-span",
+			want:  nil,
+		},
+		{
+			input: "set span my-span resource my-resource name new-my-span resource another-resource",
+			want:  fmt.Errorf("duplicate operation: resource"),
+		},
+		{
+			input: "set span my-span name new-my-span resource my-resource name new-my-span-2",
+			want:  fmt.Errorf("duplicate operation: name"),
+		},
+		{
+			input: "set span non-existing-span name new-my-span",
+			want:  fmt.Errorf("span 'non-existing-span' does not exist"),
+		},
+		{
+			input: "set span my-span name new-my-span resource non-existing-resource",
+			want:  fmt.Errorf("resource 'non-existing-resource' does not exist"),
+		},
+		{
+			input: "set resource non-existing-resource name new-resource-name",
+			want:  fmt.Errorf("resource 'non-existing-resource' does not exist"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			telemetry.InitStore()
+			telemetry.CreateTrace("my-trace")
+			telemetry.CreateResource("my-resource", map[string]string{"key": "value"})
+			telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{"key": "value"})
+			telemetry.SetResourceToSpan("my-span", "my-resource")
+
+			gotCmd, err := ParseCommand(tt.input)
+			assert.Nil(t, err, "ParseCommand should not return an error for input: %s", tt.input)
+			assert.NotNil(t, gotCmd.Set, "Set command should not be nil for input: %s", tt.input)
+			gotErr := gotCmd.Set.Validate()
+			assert.Equal(t, tt.want, gotErr, "Validate should return %v for input: %s", tt.want, tt.input)
+		})
+	}
+}

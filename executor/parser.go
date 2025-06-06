@@ -10,6 +10,7 @@ import (
 
 type Command struct {
 	Create *CreateCommand `@@`
+	Set    *SetCommand    `| @@`
 	List   *ListCommand   `| @@`
 	Send   *SendCommand   `| @@`
 	Exit   *ExitCommand   `| @@`
@@ -61,9 +62,90 @@ func (c *CreateCommand) Validate() error {
 	return nil
 }
 
+type SetCommand struct {
+	Set        string                 `"set"`
+	Type       *string                `[ @("resource" | "span") ]`
+	Name       *string                `[ @Ident ]`
+	Operations []*SetOperationCommand `@@*`
+}
+
+func (s *SetCommand) Validate() error {
+	if s.Type == nil || s.Name == nil {
+		return fmt.Errorf("type and name must be specified for set command")
+	}
+
+	if s.Operations == nil || len(s.Operations) == 0 {
+		return fmt.Errorf("operation (name, resource, attributes etc.) must be specified for set command")
+	}
+
+	var resource string
+
+	// check duplicates in operations
+	seen := make(map[string]bool)
+	for _, op := range s.Operations {
+		if op.Name != nil {
+			opName := "name"
+			if seen[opName] {
+				return fmt.Errorf("duplicate operation: %s", opName)
+			}
+			seen[opName] = true
+		}
+		if op.Resource != nil {
+			opResource := "resource"
+			if seen[opResource] {
+				return fmt.Errorf("duplicate operation: %s", opResource)
+			}
+			seen[opResource] = true
+			resource = *op.Resource
+		}
+	}
+
+	switch *s.Type {
+	case "span":
+		if s.Name != nil && !telemetry.IsSpanExists(*s.Name) {
+			return fmt.Errorf("span '%s' does not exist", *s.Name)
+		}
+		if resource != "" && !telemetry.IsResourceExists(resource) {
+			return fmt.Errorf("resource '%s' does not exist", resource)
+		}
+	case "resource":
+		if s.Name != nil && !telemetry.IsResourceExists(*s.Name) {
+			return fmt.Errorf("resource '%s' does not exist", *s.Name)
+		}
+	default:
+		return fmt.Errorf("unsupported type: %s", *s.Type)
+	}
+
+	return nil
+}
+
+func (s *SetCommand) HasOperationName() bool {
+	for _, op := range s.Operations {
+		if op.Name != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *SetCommand) HasOperationResource() bool {
+	for _, op := range s.Operations {
+		if op.Resource != nil {
+			return true
+		}
+	}
+	return false
+}
+
+type SetOperationCommand struct {
+	Name *string `("name" @Ident)`
+	// Attrs    []*KeyValue `| ("attributes" @@ { "," @@ } )`
+	Resource *string `| ("resource" @Ident)`
+}
+
 type ListCommand struct {
-	List   string  `"list"`
-	Target *string `[ @("traces" | "resources") ]`
+	List string  `"list"`
+	Type *string `[ @("traces" | "resources") ]`
 }
 
 type SendCommand struct {

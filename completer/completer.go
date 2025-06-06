@@ -12,6 +12,7 @@ import (
 var commandSuggestions = map[string][]prompt.Suggest{
 	"": {
 		{Text: "create", Description: "Create a new signal"},
+		{Text: "set", Description: "Update an existing signal"},
 		{Text: "send", Description: "Send all traces to the collector"},
 		{Text: "list", Description: "List available traces and spans"},
 		{Text: "exit", Description: "Exit the application"},
@@ -30,8 +31,20 @@ var commandSuggestions = map[string][]prompt.Suggest{
 	"create_with_parent": {
 		{Text: "parent", Description: "Create a span with a parent span"},
 	},
+	"set_type": {
+		{Text: "resource", Description: "Update a resource"},
+		{Text: "span", Description: "Update a span"},
+	},
+	"set_span_operations": {
+		{Text: "name", Description: "Set a new name for the span"},
+		{Text: "resource", Description: "Set a resource for the span"},
+	},
+	"set_resource_operations": {
+		{Text: "name", Description: "Set a new name for the resource"},
+	},
 	"list": {
 		{Text: "traces", Description: "List all available traces"},
+		{Text: "resources", Description: "List all available resources"},
 	},
 }
 
@@ -70,32 +83,27 @@ func (c *completerContext) completeCreateSpan() []prompt.Suggest {
 		return prompt.FilterHasPrefix(commandSuggestions["create_in_or_with"], c.currentWord, false)
 	}
 	// create span span-a in trace tra...
-	if c.parsed.Create.Trace != nil && c.partialInput[len(c.partialInput)-2] == "trace" && !strings.HasSuffix(c.inputText, " ") {
+	if c.isInputInProgress("trace") {
 		return prompt.FilterHasPrefix(convertTracesToSuggestions(), c.currentWord, false)
 	}
 	// create span span-b with parent span sp...
-	if c.parsed.Create.ParentSpan != nil && c.partialInput[len(c.partialInput)-2] == "parent" && !strings.HasSuffix(c.inputText, " ") {
+	if c.isInputInProgress("parent") {
 		return prompt.FilterHasPrefix(convertSpansToSuggestions(), c.currentWord, false)
 	}
 	if c.parsed.Create.Trace != nil || c.parsed.Create.ParentSpan != nil {
-		suggestions := []prompt.Suggest{}
-		if c.parsed.Create.Resource == nil {
-			if strings.Contains(c.inputText, "resource ") {
-				return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
-			} else {
-				suggestions = append(suggestions, prompt.Suggest{Text: "resource", Description: "Set a resource for the span"})
-			}
+		if c.isInputInProgress("attributes") {
+			return []prompt.Suggest{}
 		}
-		// create span span-a in trace my-trace resource res...
-		if c.parsed.Create.Resource != nil && c.partialInput[len(c.partialInput)-2] == "resource" && !strings.HasSuffix(c.inputText, " ") {
+		if c.isInputInProgress("resource") {
 			return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
 		}
-		if c.parsed.Create.Attrs == nil {
-			if strings.Contains(c.inputText, "attributes ") || c.parsed.Create.Resource != nil {
-				return []prompt.Suggest{}
-			} else {
-				suggestions = append(suggestions, prompt.Suggest{Text: "attributes", Description: "Add attributes to the span"})
-			}
+
+		suggestions := []prompt.Suggest{}
+		if c.parsed.Create.Resource == nil {
+			suggestions = append(suggestions, prompt.Suggest{Text: "resource", Description: "Set a resource for the span"})
+		}
+		if c.parsed.Create.Attrs == nil && c.parsed.Create.Resource == nil {
+			suggestions = append(suggestions, prompt.Suggest{Text: "attributes", Description: "Add attributes to the span"})
 		}
 
 		return prompt.FilterHasPrefix(suggestions, c.currentWord, false)
@@ -116,11 +124,71 @@ func (c *completerContext) completeCreateResource() []prompt.Suggest {
 	return []prompt.Suggest{}
 }
 
+func (c *completerContext) completeSet() []prompt.Suggest {
+	if c.parsed.Set.Type == nil {
+		return prompt.FilterHasPrefix(commandSuggestions["set_type"], c.currentWord, false)
+	}
+	switch *c.parsed.Set.Type {
+	case "span":
+		return c.completeSetSpan()
+	case "resource":
+		return c.completeSetResource()
+	}
+	return []prompt.Suggest{}
+}
+
+func (c *completerContext) completeSetSpan() []prompt.Suggest {
+	// 'set span ' or 'set span sp...'
+	if (c.parsed.Set.Name == nil && strings.HasSuffix(c.inputText, " ")) || c.isInputInProgress("span") {
+		return prompt.FilterHasPrefix(convertSpansToSuggestions(), c.currentWord, false)
+	}
+	if c.parsed.Set.Operations == nil {
+		if !c.isInputInProgress("name") && !c.isInputInProgress("resource") {
+			return prompt.FilterHasPrefix(commandSuggestions["set_span_operations"], c.currentWord, false)
+		}
+	}
+	if c.isInputInProgress("resource") {
+		return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
+	}
+
+	if c.parsed.Set.Operations != nil {
+		suggesstions := []prompt.Suggest{}
+		if !c.parsed.Set.HasOperationName() && !c.isInputInProgress("name") {
+			suggesstions = append(suggesstions, prompt.Suggest{Text: "name", Description: "Set a new name for the span"})
+		}
+		if !c.parsed.Set.HasOperationResource() && !c.isInputInProgress("resource") {
+			suggesstions = append(suggesstions, prompt.Suggest{Text: "resource", Description: "Set a resource for the span"})
+		}
+		return prompt.FilterHasPrefix(suggesstions, c.currentWord, false)
+	}
+
+	return []prompt.Suggest{}
+}
+
+func (c *completerContext) completeSetResource() []prompt.Suggest {
+	// 'set resource ' or 'set resource sv...'
+	if (c.parsed.Set.Name == nil && strings.HasSuffix(c.inputText, " ")) || c.isInputInProgress("resource") {
+		return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
+	}
+	if c.parsed.Set.Operations == nil {
+		if !c.isInputInProgress("name") {
+			return prompt.FilterHasPrefix(commandSuggestions["set_resource_operations"], c.currentWord, false)
+		}
+	}
+
+	return []prompt.Suggest{}
+}
+
 func (c *completerContext) completeList() []prompt.Suggest {
-	if c.parsed.List.Target == nil {
+	if c.parsed.List.Type == nil {
 		return prompt.FilterHasPrefix(commandSuggestions["list"], c.currentWord, false)
 	}
 	return []prompt.Suggest{}
+}
+
+func (c *completerContext) isInputInProgress(cmd string) bool {
+	return (c.partialInput[len(c.partialInput)-2] == cmd && !strings.HasSuffix(c.inputText, " ")) ||
+		(c.partialInput[len(c.partialInput)-1] == cmd && strings.HasSuffix(c.inputText, " "))
 }
 
 func Completer(d prompt.Document) []prompt.Suggest {
@@ -151,6 +219,8 @@ func Completer(d prompt.Document) []prompt.Suggest {
 	switch {
 	case cctx.parsed.Create != nil:
 		return cctx.completeCreate()
+	case cctx.parsed.Set != nil:
+		return cctx.completeSet()
 	case cctx.parsed.List != nil:
 		return cctx.completeList()
 	}

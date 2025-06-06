@@ -9,18 +9,18 @@ import (
 )
 
 func handleListCommand(cmd *ListCommand) {
-	if cmd.Target == nil {
+	if cmd.Type == nil {
 		fmt.Println("No target specified for list command.")
 		return
 	}
 
-	switch *cmd.Target {
+	switch *cmd.Type {
 	case "traces":
 		listTraces()
 	case "resources":
 		listResources()
 	default:
-		fmt.Printf("Unknown target type for list command: %s\n", *cmd.Target)
+		fmt.Printf("Unknown target type for list command: %s\n", *cmd.Type)
 	}
 }
 
