@@ -10,20 +10,20 @@ import (
 )
 
 type Command struct {
-	Create *CreateCommand `@@`
-	Set    *SetCommand    `| @@`
-	List   *ListCommand   `| @@`
-	Send   *SendCommand   `| @@`
-	Exit   *ExitCommand   `| @@`
+	Create *CreateCommand `parser:"@@"`
+	Set    *SetCommand    `parser:"| @@"`
+	List   *ListCommand   `parser:"| @@"`
+	Send   *SendCommand   `parser:"| @@"`
+	Exit   *ExitCommand   `parser:"| @@"`
 }
 
 type ExitCommand struct {
-	Exit string `@"exit"`
+	Exit string `parser:"@'exit'"`
 }
 
 type CreateSetArg struct {
-	Resource *string     `("resource" @Ident)`
-	Attrs    []*KeyValue `| ("attributes" @@ { "," @@ } )`
+	Resource *string     `parser:"('resource' @Ident)"`
+	Attrs    []*KeyValue `parser:"| ('attributes' @@ { ',' @@ } )"`
 }
 
 func (arg *CreateSetArg) Validate(t string) error {
@@ -48,13 +48,13 @@ func (arg *CreateSetArg) Validate(t string) error {
 }
 
 type CreateCommand struct {
-	Create     string      `"create"`
-	Type       *string     `[ @("resource" | "span") ]`
-	Name       *string     `[ @Ident ]`
-	Trace      *string     `[ "in" "trace" @Ident ]`
-	ParentSpan *string     `[ "with" "parent" @Ident ]`
-	Attrs      []*KeyValue `[ "attributes" @@ { "," @@ } ]`
-	Resource   *string     `[ "resource" @Ident ]`
+	Create     string      `parser:"'create'"`
+	Type       *string     `parser:"[ @('resource'| 'span') ]"`
+	Name       *string     `parser:"[ @Ident ]"`
+	Trace      *string     `parser:"[ 'in' 'trace' @Ident ]"`
+	ParentSpan *string     `parser:"[ 'with' 'parent' @Ident ]"`
+	Attrs      []*KeyValue `parser:"[ 'attributes' @@ { ',' @@ } ]"`
+	Resource   *string     `parser:"[ 'resource' @Ident ]"`
 }
 
 func (c *CreateCommand) Validate() error {
@@ -90,7 +90,7 @@ func (c *CreateCommand) Validate() error {
 }
 
 type SetOnlyArg struct {
-	Name *string `("name" @Ident)`
+	Name *string `parser:"('name' @Ident)"`
 }
 
 func (arg *SetOnlyArg) Validate() error {
@@ -110,8 +110,8 @@ func (arg *SetOnlyArg) Validate() error {
 }
 
 type SetArg struct {
-	SetCreateArg *CreateSetArg `@@`
-	SetOnlyArg   *SetOnlyArg   `| @@`
+	SetCreateArg *CreateSetArg `parser:"@@"`
+	SetOnlyArg   *SetOnlyArg   `parser:"| @@"`
 }
 
 func (arg *SetArg) Validate(t string) error {
@@ -125,10 +125,10 @@ func (arg *SetArg) Validate(t string) error {
 }
 
 type SetCommand struct {
-	Set  string    `"set"`
-	Type *string   `[ @("resource" | "span") ]`
-	Name *string   `[ @Ident ]`
-	Args []*SetArg `@@*`
+	Set  string    `parser:"'set'"`
+	Type *string   `parser:"[ @('resource' | 'span') ]"`
+	Name *string   `parser:"[ @Ident ]"`
+	Args []*SetArg `parser:"@@*"`
 }
 
 func (s *SetCommand) Validate() error {
@@ -209,17 +209,17 @@ func (s *SetCommand) HasArgResource() bool {
 }
 
 type ListCommand struct {
-	List string  `"list"`
-	Type *string `[ @("traces" | "resources") ]`
+	List string  `parser:"'list'"`
+	Type *string `parser:"[ @('traces' | 'resources') ]"`
 }
 
 type SendCommand struct {
-	Send string `"send"`
+	Send string `parser:"'send'"`
 }
 
 type KeyValue struct {
-	Key   string `@Ident "="`
-	Value string `@Ident`
+	Key   string `parser:"@Ident '='"`
+	Value string `parser:"@Ident"`
 }
 
 func convertKeyValuesToMap(attrs []*KeyValue) map[string]string {
@@ -234,12 +234,12 @@ func convertKeyValuesToMap(attrs []*KeyValue) map[string]string {
 
 var (
 	commandLexer = lexer.MustSimple([]lexer.SimpleRule{
-		{"Comment", `#[^\n]*`},
-		{"Whitespace", `\s+`},
-		{"String", `"[^"]*"|'[^']*'`},
-		{"Number", `[-+]?\d+(\.\d+)?`},
-		{"Ident", `[a-zA-Z_][a-zA-Z0-9_\.\-]*`},
-		{"Punct", `[,=]`},
+		{Name: "Comment", Pattern: `#[^\n]*`},
+		{Name: "Whitespace", Pattern: `\s+`},
+		{Name: "String", Pattern: `"[^"]*"|'[^']*'`},
+		{Name: "Number", Pattern: `[-+]?\d+(\.\d+)?`},
+		{Name: "Ident", Pattern: `[a-zA-Z_][a-zA-Z0-9_\.\-]*`},
+		{Name: "Punct", Pattern: `[,=]`},
 	})
 
 	parser = participle.MustBuild[Command](
