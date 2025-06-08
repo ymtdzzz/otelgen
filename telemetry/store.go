@@ -3,6 +3,7 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -103,9 +104,7 @@ func UpdateSpan(name, newName, resource string, attributes map[string]string) (*
 	}
 	if attributes != nil {
 		span.Attributes = make(map[string]string)
-		for k, v := range attributes {
-			span.Attributes[k] = v
-		}
+		maps.Copy(span.Attributes, attributes)
 	}
 	return span, nil
 }
@@ -134,9 +133,7 @@ func UpdateResource(name, newName string, attributes map[string]string) (*Resour
 	}
 	if attributes != nil {
 		resource.Attributes = make(map[string]string)
-		for k, v := range attributes {
-			resource.Attributes[k] = v
-		}
+		maps.Copy(resource.Attributes, attributes)
 	}
 	return resource, nil
 }
