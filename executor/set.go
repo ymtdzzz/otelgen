@@ -32,12 +32,16 @@ func handleSetSpan(cmd *SetCommand) error {
 		resourceName string
 	)
 
-	for _, op := range cmd.Operations {
-		if op.Name != nil {
-			newName = *op.Name
+	for _, arg := range cmd.Args {
+		if arg.SetCreateArg != nil {
+			if arg.SetCreateArg.Resource != nil {
+				resourceName = *arg.SetCreateArg.Resource
+			}
 		}
-		if op.Resource != nil {
-			resourceName = *op.Resource
+		if arg.SetOnlyArg != nil {
+			if arg.SetOnlyArg.Name != nil {
+				newName = *arg.SetOnlyArg.Name
+			}
 		}
 	}
 
@@ -52,9 +56,11 @@ func handleSetSpan(cmd *SetCommand) error {
 func handleSetResource(cmd *SetCommand) error {
 	var newName string
 
-	for _, op := range cmd.Operations {
-		if op.Name != nil {
-			newName = *op.Name
+	for _, arg := range cmd.Args {
+		if arg.SetOnlyArg != nil {
+			if arg.SetOnlyArg.Name != nil {
+				newName = *arg.SetOnlyArg.Name
+			}
 		}
 	}
 

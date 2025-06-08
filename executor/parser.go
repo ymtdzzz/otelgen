@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/alecthomas/participle/v2"
@@ -18,6 +19,32 @@ type Command struct {
 
 type ExitCommand struct {
 	Exit string `@"exit"`
+}
+
+type CreateSetArg struct {
+	Resource *string `("resource" @Ident)`
+	// Attrs    []*KeyValue `| ("attributes" @@ { "," @@ } )`
+}
+
+func (arg *CreateSetArg) Validate(t string) error {
+	var resource string
+
+	if arg.Resource != nil {
+		resource = *arg.Resource
+	}
+
+	switch t {
+	case "span":
+		if resource != "" && !telemetry.IsResourceExists(resource) {
+			return fmt.Errorf("resource '%s' does not exist", resource)
+		}
+	case "resource":
+		if resource != "" {
+			return errors.New("resource cannot be specified when the type is resource")
+		}
+	}
+
+	return nil
 }
 
 type CreateCommand struct {
@@ -62,11 +89,46 @@ func (c *CreateCommand) Validate() error {
 	return nil
 }
 
+type SetOnlyArg struct {
+	Name *string `("name" @Ident)`
+}
+
+func (arg *SetOnlyArg) Validate() error {
+	var name string
+
+	if arg.Name != nil {
+		name = *arg.Name
+	}
+
+	if name != "" {
+		if _, exists := telemetry.GetSpans()[name]; exists {
+			return fmt.Errorf("span with name %s already exists", name)
+		}
+	}
+
+	return nil
+}
+
+type SetArg struct {
+	SetCreateArg *CreateSetArg `@@`
+	SetOnlyArg   *SetOnlyArg   `| @@`
+}
+
+func (arg *SetArg) Validate(t string) error {
+	if arg.SetCreateArg != nil {
+		return arg.SetCreateArg.Validate(t)
+	}
+	if arg.SetOnlyArg != nil {
+		return arg.SetOnlyArg.Validate()
+	}
+	return nil
+}
+
 type SetCommand struct {
-	Set        string                 `"set"`
-	Type       *string                `[ @("resource" | "span") ]`
-	Name       *string                `[ @Ident ]`
-	Operations []*SetOperationCommand `@@*`
+	Set  string    `"set"`
+	Type *string   `[ @("resource" | "span") ]`
+	Name *string   `[ @Ident ]`
+	Args []*SetArg `@@*`
 }
 
 func (s *SetCommand) Validate() error {
@@ -74,70 +136,72 @@ func (s *SetCommand) Validate() error {
 		return fmt.Errorf("type and name must be specified for set command")
 	}
 
-	if s.Operations == nil || len(s.Operations) == 0 {
+	if len(s.Args) == 0 {
 		return fmt.Errorf("operation (name, resource, attributes etc.) must be specified for set command")
-	}
-
-	var resource string
-
-	// check duplicates in operations
-	seen := make(map[string]bool)
-	for _, op := range s.Operations {
-		if op.Name != nil {
-			opName := "name"
-			if seen[opName] {
-				return fmt.Errorf("duplicate operation: %s", opName)
-			}
-			seen[opName] = true
-		}
-		if op.Resource != nil {
-			opResource := "resource"
-			if seen[opResource] {
-				return fmt.Errorf("duplicate operation: %s", opResource)
-			}
-			seen[opResource] = true
-			resource = *op.Resource
-		}
 	}
 
 	switch *s.Type {
 	case "span":
-		if s.Name != nil && !telemetry.IsSpanExists(*s.Name) {
+		if _, exists := telemetry.GetSpans()[*s.Name]; !exists {
 			return fmt.Errorf("span '%s' does not exist", *s.Name)
 		}
-		if resource != "" && !telemetry.IsResourceExists(resource) {
-			return fmt.Errorf("resource '%s' does not exist", resource)
-		}
 	case "resource":
-		if s.Name != nil && !telemetry.IsResourceExists(*s.Name) {
+		if _, exists := telemetry.GetResources()[*s.Name]; !exists {
 			return fmt.Errorf("resource '%s' does not exist", *s.Name)
 		}
-	default:
-		return fmt.Errorf("unsupported type: %s", *s.Type)
+	}
+
+	// check duplicates in operations
+	seen := make(map[string]bool)
+	for _, arg := range s.Args {
+		if arg.SetCreateArg != nil {
+			if arg.SetCreateArg.Resource != nil {
+				opName := "resource"
+				if seen[opName] {
+					return fmt.Errorf("duplicate operation: %s", opName)
+				}
+				seen[opName] = true
+			}
+		}
+		if arg.SetOnlyArg != nil {
+			if arg.SetOnlyArg.Name != nil {
+				opName := "name"
+				if seen[opName] {
+					return fmt.Errorf("duplicate operation: %s", opName)
+				}
+				seen[opName] = true
+			}
+		}
+	}
+
+	for _, arg := range s.Args {
+		if err := arg.Validate(*s.Type); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (s *SetCommand) HasOperationName() bool {
-	for _, op := range s.Operations {
-		if op.Name != nil {
+func (s *SetCommand) HasArgName() bool {
+	for _, arg := range s.Args {
+		if arg.SetOnlyArg != nil && arg.SetOnlyArg.Name != nil {
 			return true
 		}
 	}
 	return false
 }
 
-func (s *SetCommand) HasOperationResource() bool {
-	for _, op := range s.Operations {
-		if op.Resource != nil {
+func (s *SetCommand) HasArgResource() bool {
+	for _, arg := range s.Args {
+		if arg.SetCreateArg != nil && arg.SetCreateArg.Resource != nil {
 			return true
 		}
 	}
 	return false
 }
 
-type SetOperationCommand struct {
+type SetOperationCommandOld struct {
 	Name *string `("name" @Ident)`
 	// Attrs    []*KeyValue `| ("attributes" @@ { "," @@ } )`
 	Resource *string `| ("resource" @Ident)`

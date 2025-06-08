@@ -142,7 +142,7 @@ func (c *completerContext) completeSetSpan() []prompt.Suggest {
 	if (c.parsed.Set.Name == nil && strings.HasSuffix(c.inputText, " ")) || c.isInputInProgress("span") {
 		return prompt.FilterHasPrefix(convertSpansToSuggestions(), c.currentWord, false)
 	}
-	if c.parsed.Set.Operations == nil {
+	if len(c.parsed.Set.Args) == 0 {
 		if !c.isInputInProgress("name") && !c.isInputInProgress("resource") {
 			return prompt.FilterHasPrefix(commandSuggestions["set_span_operations"], c.currentWord, false)
 		}
@@ -151,18 +151,16 @@ func (c *completerContext) completeSetSpan() []prompt.Suggest {
 		return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
 	}
 
-	if c.parsed.Set.Operations != nil {
-		suggesstions := []prompt.Suggest{}
-		if !c.parsed.Set.HasOperationName() && !c.isInputInProgress("name") {
+	suggesstions := []prompt.Suggest{}
+	if !c.isInputInProgress("name") && !c.isInputInProgress("resource") {
+		if !c.parsed.Set.HasArgName() {
 			suggesstions = append(suggesstions, prompt.Suggest{Text: "name", Description: "Set a new name for the span"})
 		}
-		if !c.parsed.Set.HasOperationResource() && !c.isInputInProgress("resource") {
+		if !c.parsed.Set.HasArgResource() {
 			suggesstions = append(suggesstions, prompt.Suggest{Text: "resource", Description: "Set a resource for the span"})
 		}
-		return prompt.FilterHasPrefix(suggesstions, c.currentWord, false)
 	}
-
-	return []prompt.Suggest{}
+	return prompt.FilterHasPrefix(suggesstions, c.currentWord, false)
 }
 
 func (c *completerContext) completeSetResource() []prompt.Suggest {
@@ -170,10 +168,8 @@ func (c *completerContext) completeSetResource() []prompt.Suggest {
 	if (c.parsed.Set.Name == nil && strings.HasSuffix(c.inputText, " ")) || c.isInputInProgress("resource") {
 		return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
 	}
-	if c.parsed.Set.Operations == nil {
-		if !c.isInputInProgress("name") {
-			return prompt.FilterHasPrefix(commandSuggestions["set_resource_operations"], c.currentWord, false)
-		}
+	if !c.isInputInProgress("name") {
+		return prompt.FilterHasPrefix(commandSuggestions["set_resource_operations"], c.currentWord, false)
 	}
 
 	return []prompt.Suggest{}
