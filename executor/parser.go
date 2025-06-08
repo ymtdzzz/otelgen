@@ -48,13 +48,12 @@ func (arg *CreateSetArg) Validate(t string) error {
 }
 
 type CreateCommand struct {
-	Create     string      `parser:"'create'"`
-	Type       *string     `parser:"[ @('resource'| 'span') ]"`
-	Name       *string     `parser:"[ @Ident ]"`
-	Trace      *string     `parser:"[ 'in' 'trace' @Ident ]"`
-	ParentSpan *string     `parser:"[ 'with' 'parent' @Ident ]"`
-	Attrs      []*KeyValue `parser:"[ 'attributes' @@ { ',' @@ } ]"`
-	Resource   *string     `parser:"[ 'resource' @Ident ]"`
+	Create     string          `parser:"'create'"`
+	Type       *string         `parser:"[ @('resource'| 'span') ]"`
+	Name       *string         `parser:"[ @Ident ]"`
+	Trace      *string         `parser:"[ 'in' 'trace' @Ident ]"`
+	ParentSpan *string         `parser:"[ 'with' 'parent' @Ident ]"`
+	Args       []*CreateSetArg `parser:"@@*"`
 }
 
 func (c *CreateCommand) Validate() error {
@@ -62,8 +61,26 @@ func (c *CreateCommand) Validate() error {
 		return fmt.Errorf("type and name must be specified for create command")
 	}
 
-	switch *c.Type {
-	case "span":
+	// check duplicates in operations
+	seen := make(map[string]bool)
+	for _, arg := range c.Args {
+		if arg.Resource != nil {
+			opName := "resource"
+			if seen[opName] {
+				return fmt.Errorf("duplicate operation: %s", opName)
+			}
+			seen[opName] = true
+		}
+		if len(arg.Attrs) > 0 {
+			opName := "attributes"
+			if seen[opName] {
+				return fmt.Errorf("duplicate operation: %s", opName)
+			}
+			seen[opName] = true
+		}
+	}
+
+	if *c.Type == "span" {
 		if c.Trace == nil && c.ParentSpan == nil {
 			return fmt.Errorf("span must be created in a trace or with a parent span")
 		}
@@ -75,18 +92,33 @@ func (c *CreateCommand) Validate() error {
 				return fmt.Errorf("parent span '%s' does not exist", *c.ParentSpan)
 			}
 		}
-		if c.Resource != nil {
-			if !telemetry.IsResourceExists(*c.Resource) {
-				return fmt.Errorf("resource '%s' does not exist", *c.Resource)
-			}
+	}
+
+	for _, arg := range c.Args {
+		if err := arg.Validate(*c.Type); err != nil {
+			return err
 		}
-	case "resource":
-		return nil
-	default:
-		return fmt.Errorf("unsupported type: %s", *c.Type)
 	}
 
 	return nil
+}
+
+func (c *CreateCommand) HasArgAttrs() bool {
+	for _, arg := range c.Args {
+		if len(arg.Attrs) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *CreateCommand) HasArgResource() bool {
+	for _, arg := range c.Args {
+		if arg.Resource != nil {
+			return true
+		}
+	}
+	return false
 }
 
 type SetOnlyArg struct {

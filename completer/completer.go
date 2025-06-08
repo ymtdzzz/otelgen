@@ -99,11 +99,13 @@ func (c *completerContext) completeCreateSpan() []prompt.Suggest {
 		}
 
 		suggestions := []prompt.Suggest{}
-		if c.parsed.Create.Resource == nil {
-			suggestions = append(suggestions, prompt.Suggest{Text: "resource", Description: "Set a resource for the span"})
-		}
-		if c.parsed.Create.Attrs == nil && c.parsed.Create.Resource == nil {
-			suggestions = append(suggestions, prompt.Suggest{Text: "attributes", Description: "Add attributes to the span"})
+		if !c.isInputInProgress("resource") && !c.isInputInProgress("attributes") {
+			if !c.parsed.Create.HasArgResource() {
+				suggestions = append(suggestions, prompt.Suggest{Text: "resource", Description: "Set a resource for the span"})
+			}
+			if !c.parsed.Create.HasArgAttrs() {
+				suggestions = append(suggestions, prompt.Suggest{Text: "attributes", Description: "Add attributes to the span"})
+			}
 		}
 
 		return prompt.FilterHasPrefix(suggestions, c.currentWord, false)
@@ -112,7 +114,7 @@ func (c *completerContext) completeCreateSpan() []prompt.Suggest {
 }
 
 func (c *completerContext) completeCreateResource() []prompt.Suggest {
-	if c.parsed.Create.Attrs == nil && c.parsed.Create.Name != nil {
+	if !c.parsed.Create.HasArgAttrs() && c.parsed.Create.Name != nil {
 		if strings.Contains(c.inputText, "attributes ") {
 			return []prompt.Suggest{}
 		} else {
