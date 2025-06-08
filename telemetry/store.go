@@ -237,10 +237,10 @@ func SendAllTraces() {
 
 	InitStore()
 
-	exporter := GetTracerManager().GetExporter()
-	processor := GetTracerManager().GetSpanProcessor()
+	exporterFn := GetTracerManager().GetExporterFn()
+	processorFn := GetTracerManager().GetSpanProcessorFn()
 
-	InitTracerManager(exporter, processor)
+	InitTracerManager(exporterFn, processorFn)
 }
 
 // processSpan handles span creation with duration distribution:

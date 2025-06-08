@@ -9,18 +9,18 @@ import (
 	"github.com/ymtdzzz/otelgen/executor"
 	"github.com/ymtdzzz/otelgen/telemetry"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 func main() {
-	exporter, err := otlptracegrpc.New(context.Background(),
-		otlptracegrpc.WithInsecure(),
-		otlptracegrpc.WithEndpoint("localhost:4317"),
-	)
-	if err != nil {
-		panic(err)
+	exporterFn := func() (sdktrace.SpanExporter, error) {
+		return otlptracegrpc.New(context.Background(),
+			otlptracegrpc.WithInsecure(),
+			otlptracegrpc.WithEndpoint("localhost:4317"),
+		)
 	}
 
-	telemetry.InitTracerManager(exporter, nil)
+	telemetry.InitTracerManager(exporterFn, nil)
 	defer func() {
 		if err := telemetry.GetTracerManager().Shutdown(context.Background()); err != nil {
 			fmt.Printf("Error shutting down tracer manager: %v\n", err)

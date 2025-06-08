@@ -17,9 +17,11 @@ type TracerManager struct {
 	providers map[string]*sdktrace.TracerProvider
 	// Default tracer provider
 	defaultProvider *sdktrace.TracerProvider
-	// Exporter for all tracer providers
-	exporter sdktrace.SpanExporter
-	// Span processor for all tracer providers
+	// Function to create a new exporter
+	exporterFn func() (sdktrace.SpanExporter, error)
+	// Function to create a new span processor
+	processorFn func() (sdktrace.SpanProcessor, error)
+	// Current span processor. This is only used for testing
 	processor sdktrace.SpanProcessor
 }
 
@@ -27,22 +29,36 @@ type TracerManager struct {
 var tracerManager *TracerManager
 
 // InitTracerManager initializes the global tracer manager
-func InitTracerManager(exporter sdktrace.SpanExporter, processor sdktrace.SpanProcessor) {
+func InitTracerManager(exporterFn func() (sdktrace.SpanExporter, error), processorFn func() (sdktrace.SpanProcessor, error)) error {
 	if tracerManager != nil {
 		if err := tracerManager.Shutdown(context.Background()); err != nil {
 			fmt.Printf("Error shutting down tracer manager: %v\n", err)
 		}
 	}
+	exporter, err := exporterFn()
+	if err != nil {
+		return err
+	}
 	defaultProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSyncer(exporter),
 		sdktrace.WithResource(sdkresource.Default()),
 	)
+	var processor sdktrace.SpanProcessor
+	if processorFn != nil {
+		processor, err = processorFn()
+		if err != nil {
+			return err
+		}
+		defaultProvider.RegisterSpanProcessor(processor)
+	}
 	tracerManager = &TracerManager{
 		providers:       make(map[string]*sdktrace.TracerProvider),
 		defaultProvider: defaultProvider,
-		exporter:        exporter,
+		exporterFn:      exporterFn,
+		processorFn:     processorFn,
 		processor:       processor,
 	}
+	return nil
 }
 
 // GetTracerManager returns the global tracer manager
@@ -69,14 +85,24 @@ func (tm *TracerManager) CreateTracerForResource(resourceName string, res *Resou
 		resAttrs...,
 	)
 
+	exporter, err := tm.exporterFn()
+	if err != nil {
+		return nil, err
+	}
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSyncer(tm.exporter),
+		sdktrace.WithSyncer(exporter),
 		sdktrace.WithResource(r),
 	)
-	if tm.processor != nil {
-		tp.RegisterSpanProcessor(tm.processor)
+	var processor sdktrace.SpanProcessor
+	if tm.processorFn != nil {
+		processor, err = tm.processorFn()
+		if err != nil {
+			return nil, err
+		}
+		tp.RegisterSpanProcessor(processor)
 	}
 
+	tm.processor = processor
 	tm.providers[resourceName] = tp
 
 	return tp.Tracer("otelgen"), nil
@@ -96,12 +122,17 @@ func (tm *TracerManager) GetDefaultTracer() trace.Tracer {
 	return tm.defaultProvider.Tracer("otelgen")
 }
 
-// GetExporter returns the exporter used by the tracer manager
-func (tm *TracerManager) GetExporter() sdktrace.SpanExporter {
-	return tm.exporter
+// GetExporterFn returns the function to create exporter used by the tracer manager
+func (tm *TracerManager) GetExporterFn() func() (sdktrace.SpanExporter, error) {
+	return tm.exporterFn
 }
 
-// GetSpanProcessor returns the span processor used by the tracer manager
+// GetSpanProcessorFn returns the function to create span processor used by the tracer manager
+func (tm *TracerManager) GetSpanProcessorFn() func() (sdktrace.SpanProcessor, error) {
+	return tm.processorFn
+}
+
+// GetSpanProcessor returns the current span processor. This is only used for testing
 func (tm *TracerManager) GetSpanProcessor() sdktrace.SpanProcessor {
 	return tm.processor
 }

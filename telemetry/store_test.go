@@ -144,7 +144,14 @@ func TestStore(t *testing.T) {
 func TestSendAllTraces(t *testing.T) {
 	recorder := tracetest.NewSpanRecorder()
 
-	InitTracerManager(tracetest.NewNoopExporter(), recorder)
+	exporterFn := func() (trace.SpanExporter, error) {
+		return tracetest.NewNoopExporter(), nil
+	}
+	processorFn := func() (trace.SpanProcessor, error) {
+		return recorder, nil
+	}
+
+	InitTracerManager(exporterFn, processorFn)
 	t.Cleanup(func() {
 		if err := GetTracerManager().Shutdown(context.Background()); err != nil {
 			t.Fatalf("Failed to shutdown tracer manager: %v", err)
