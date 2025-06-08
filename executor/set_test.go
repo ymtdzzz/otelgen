@@ -14,7 +14,7 @@ func TestHandleSetSpan_OK(t *testing.T) {
 	telemetry.CreateTrace("my-trace")
 	telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{})
 
-	cmd, err := ParseCommand("set span my-span name new-span-name resource my-resource")
+	cmd, err := ParseCommand("set span my-span name new-span-name resource my-resource attributes key=value,http.method=GET")
 	assert.Nil(t, err, "ParseCommand should not return an error")
 	assert.NotNil(t, cmd.Set, "Set command should not be nil")
 
@@ -27,6 +27,7 @@ func TestHandleSetSpan_OK(t *testing.T) {
 	assert.True(t, exists)
 	assert.Equal(t, "new-span-name", span.Name, "Span name should match")
 	assert.Equal(t, "my-resource", span.Resource.Name, "Span resource should match")
+	assert.Equal(t, map[string]string{"key": "value", "http.method": "GET"}, span.Attributes, "Span attributes should match")
 }
 
 func TestHandleSetSpan_NonExistingResource(t *testing.T) {
@@ -50,7 +51,7 @@ func TestHandleSetResource_OK(t *testing.T) {
 	telemetry.InitStore()
 	telemetry.CreateResource("my-resource", map[string]string{})
 
-	cmd, err := ParseCommand("set resource my-resource name new-resource-name")
+	cmd, err := ParseCommand("set resource my-resource name new-resource-name attributes key=value")
 	assert.Nil(t, err, "ParseCommand should not return an error")
 	assert.NotNil(t, cmd.Set, "Set command should not be nil")
 
@@ -62,6 +63,7 @@ func TestHandleSetResource_OK(t *testing.T) {
 	resource, exists := telemetry.GetResources()["new-resource-name"]
 	assert.True(t, exists)
 	assert.Equal(t, "new-resource-name", resource.Name)
+	assert.Equal(t, map[string]string{"key": "value"}, resource.Attributes, "Resource attributes should match")
 }
 
 func TestHandleSetCommand_ValidateError(t *testing.T) {

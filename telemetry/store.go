@@ -81,7 +81,7 @@ func CreateTrace(name string) *Trace {
 	return trace
 }
 
-func UpdateSpan(name, newName, resource string) (*Span, error) {
+func UpdateSpan(name, newName, resource string, attributes map[string]string) (*Span, error) {
 	span, ok := store.spans[name]
 	if !ok {
 		return nil, fmt.Errorf("span %s not found", name)
@@ -101,6 +101,12 @@ func UpdateSpan(name, newName, resource string) (*Span, error) {
 		}
 		span.Resource = res
 	}
+	if attributes != nil {
+		span.Attributes = make(map[string]string)
+		for k, v := range attributes {
+			span.Attributes[k] = v
+		}
+	}
 	return span, nil
 }
 
@@ -113,7 +119,7 @@ func CreateResource(name string, attributes map[string]string) *Resource {
 	return resource
 }
 
-func UpdateResource(name, newName string) (*Resource, error) {
+func UpdateResource(name, newName string, attributes map[string]string) (*Resource, error) {
 	resource, ok := store.resources[name]
 	if !ok {
 		return nil, fmt.Errorf("resource %s not found", name)
@@ -125,6 +131,12 @@ func UpdateResource(name, newName string) (*Resource, error) {
 		delete(store.resources, name)
 		resource.Name = newName
 		store.resources[newName] = resource
+	}
+	if attributes != nil {
+		resource.Attributes = make(map[string]string)
+		for k, v := range attributes {
+			resource.Attributes[k] = v
+		}
 	}
 	return resource, nil
 }

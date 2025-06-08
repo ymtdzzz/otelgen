@@ -86,6 +86,10 @@ func TestSetCommandValidate(t *testing.T) {
 			want:  fmt.Errorf("duplicate operation: name"),
 		},
 		{
+			input: "set span my-span attributes key=val name new-my-span attributes another_key=another_val",
+			want:  fmt.Errorf("duplicate operation: attributes"),
+		},
+		{
 			input: "set span non-existing-span name new-my-span",
 			want:  fmt.Errorf("span 'non-existing-span' does not exist"),
 		},

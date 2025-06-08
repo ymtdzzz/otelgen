@@ -22,8 +22,8 @@ type ExitCommand struct {
 }
 
 type CreateSetArg struct {
-	Resource *string `("resource" @Ident)`
-	// Attrs    []*KeyValue `| ("attributes" @@ { "," @@ } )`
+	Resource *string     `("resource" @Ident)`
+	Attrs    []*KeyValue `| ("attributes" @@ { "," @@ } )`
 }
 
 func (arg *CreateSetArg) Validate(t string) error {
@@ -162,6 +162,13 @@ func (s *SetCommand) Validate() error {
 				}
 				seen[opName] = true
 			}
+			if len(arg.SetCreateArg.Attrs) > 0 {
+				opName := "attributes"
+				if seen[opName] {
+					return fmt.Errorf("duplicate operation: %s", opName)
+				}
+				seen[opName] = true
+			}
 		}
 		if arg.SetOnlyArg != nil {
 			if arg.SetOnlyArg.Name != nil {
@@ -199,12 +206,6 @@ func (s *SetCommand) HasArgResource() bool {
 		}
 	}
 	return false
-}
-
-type SetOperationCommandOld struct {
-	Name *string `("name" @Ident)`
-	// Attrs    []*KeyValue `| ("attributes" @@ { "," @@ } )`
-	Resource *string `| ("resource" @Ident)`
 }
 
 type ListCommand struct {

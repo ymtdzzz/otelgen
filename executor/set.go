@@ -30,6 +30,7 @@ func handleSetSpan(cmd *SetCommand) error {
 	var (
 		newName      string
 		resourceName string
+		attributes   map[string]string
 	)
 
 	for _, arg := range cmd.Args {
@@ -37,6 +38,9 @@ func handleSetSpan(cmd *SetCommand) error {
 			if arg.SetCreateArg.Resource != nil {
 				resourceName = *arg.SetCreateArg.Resource
 			}
+			if len(arg.SetCreateArg.Attrs) > 0 {
+				attributes = convertKeyValuesToMap(arg.SetCreateArg.Attrs)
+			}
 		}
 		if arg.SetOnlyArg != nil {
 			if arg.SetOnlyArg.Name != nil {
@@ -45,18 +49,26 @@ func handleSetSpan(cmd *SetCommand) error {
 		}
 	}
 
-	if _, err := telemetry.UpdateSpan(*cmd.Name, newName, resourceName); err != nil {
+	if _, err := telemetry.UpdateSpan(*cmd.Name, newName, resourceName, attributes); err != nil {
 		return err
 	}
-	fmt.Printf("Updated span: %s with new name: %s and resource: %s\n", *cmd.Name, newName, resourceName)
+	fmt.Printf("Updated span\n")
 
 	return nil
 }
 
 func handleSetResource(cmd *SetCommand) error {
-	var newName string
+	var (
+		newName    string
+		attributes map[string]string
+	)
 
 	for _, arg := range cmd.Args {
+		if arg.SetCreateArg != nil {
+			if len(arg.SetCreateArg.Attrs) > 0 {
+				attributes = convertKeyValuesToMap(arg.SetCreateArg.Attrs)
+			}
+		}
 		if arg.SetOnlyArg != nil {
 			if arg.SetOnlyArg.Name != nil {
 				newName = *arg.SetOnlyArg.Name
@@ -64,7 +76,7 @@ func handleSetResource(cmd *SetCommand) error {
 		}
 	}
 
-	if _, err := telemetry.UpdateResource(*cmd.Name, newName); err != nil {
+	if _, err := telemetry.UpdateResource(*cmd.Name, newName, attributes); err != nil {
 		return err
 	}
 	fmt.Printf("Updated resource: %s with new name: %s\n", *cmd.Name, newName)
