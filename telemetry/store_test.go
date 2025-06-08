@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
@@ -165,7 +166,7 @@ func TestSendAllTraces(t *testing.T) {
 
 	// Spans
 	rootSpanName := "root_span"
-	_, err := AddSpanToTrace(traceName, rootSpanName, map[string]string{
+	rootSpan, err := AddSpanToTrace(traceName, rootSpanName, map[string]string{
 		"operation": "main",
 		"status":    "success",
 	})
@@ -195,11 +196,14 @@ func TestSendAllTraces(t *testing.T) {
 	assert.NoError(t, err)
 
 	childSpan2Name := "child_span_2"
-	_, err = AddSpanToSpan(rootSpanName, childSpan2Name, map[string]string{
+	childSpan2, err := AddSpanToSpan(rootSpanName, childSpan2Name, map[string]string{
 		"operation": "store_result",
 		"status":    "success",
 	})
 	assert.NoError(t, err)
+
+	// Link
+	rootSpan.AddLink(childSpan2)
 
 	_, err = SetResourceToSpan(childSpan2Name, resourceName)
 	assert.NoError(t, err)
@@ -210,7 +214,7 @@ func TestSendAllTraces(t *testing.T) {
 	assert.Equal(t, 4, len(spans), "Expected 4 spans to be exported")
 
 	spanNames := make(map[string]bool)
-	gotSpanIDs := make(map[string]string)
+	gotSpans := make(map[string]trace.ReadOnlySpan)
 	for _, span := range spans {
 		gotSpanName := span.Name()
 
@@ -228,19 +232,19 @@ func TestSendAllTraces(t *testing.T) {
 		} else if gotSpanName == "child_span_2" {
 			assert.Equal(t, "store_result", getAttributeValue(attrs, "operation"))
 		}
-		gotSpanIDs[gotSpanName] = span.SpanContext().SpanID().String()
+		gotSpans[gotSpanName] = span
 	}
 
 	for _, span := range spans {
 		gotSpanName := span.Name()
 		if gotSpanName == rootSpanName {
-			continue
+			assert.Equal(t, gotSpans[childSpan2Name].SpanContext().SpanID(), gotSpans[rootSpanName].Links()[0].SpanContext.SpanID())
 		} else if gotSpanName == childSpan1Name {
-			assert.Equal(t, gotSpanIDs[rootSpanName], span.Parent().SpanID().String())
+			assert.Equal(t, gotSpans[rootSpanName].SpanContext().SpanID(), span.Parent().SpanID())
 		} else if gotSpanName == grandChildSpanName {
-			assert.Equal(t, gotSpanIDs[childSpan1Name], span.Parent().SpanID().String())
+			assert.Equal(t, gotSpans[childSpan1Name].SpanContext().SpanID(), span.Parent().SpanID())
 		} else if gotSpanName == "child_span_2" {
-			assert.Equal(t, gotSpanIDs[rootSpanName], span.Parent().SpanID().String())
+			assert.Equal(t, gotSpans[rootSpanName].SpanContext().SpanID(), span.Parent().SpanID())
 		}
 	}
 

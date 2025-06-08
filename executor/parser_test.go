@@ -119,3 +119,46 @@ func TestSetCommandValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestAddLinkCommandValidate(t *testing.T) {
+	tests := []struct {
+		input string
+		want  error
+	}{
+		{
+			input: "add link my-span another-span",
+			want:  nil,
+		},
+		{
+			input: "add link",
+			want:  fmt.Errorf("both 'from' and 'to' must be specified for add link command"),
+		},
+		{
+			input: "add link wrong-span another-span",
+			want:  fmt.Errorf("span 'wrong-span' does not exist"),
+		},
+		{
+			input: "add link my-span wrong-span",
+			want:  fmt.Errorf("span 'wrong-span' does not exist"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			telemetry.InitStore()
+			telemetry.CreateTrace("my-trace")
+			telemetry.CreateResource("my-resource", map[string]string{"key": "value"})
+			telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{"key": "value"})
+			telemetry.SetResourceToSpan("my-span", "my-resource")
+
+			telemetry.CreateTrace("another-trace")
+			telemetry.AddSpanToTrace("another-trace", "another-span", map[string]string{"key": "value"})
+
+			gotCmd, err := ParseCommand(tt.input)
+			assert.Nil(t, err, "ParseCommand should not return an error for input: %s", tt.input)
+			assert.NotNil(t, gotCmd.AddLink, "AddLink command should not be nil for input: %s", tt.input)
+			gotErr := gotCmd.AddLink.Validate()
+			assert.Equal(t, tt.want, gotErr, "Validate should return %v for input: %s", tt.want, tt.input)
+		})
+	}
+}

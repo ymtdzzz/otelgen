@@ -409,6 +409,70 @@ func TestCompleteSetResource(t *testing.T) {
 	}
 }
 
+func TestCompleteAdd(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []prompt.Suggest
+	}{
+		{
+			input: "add ",
+			want:  commandSuggestions["add_type"],
+		},
+		{
+			input: "add l",
+			want: []prompt.Suggest{
+				{Text: "link", Description: "Add a link to the span"},
+			},
+		},
+		{
+			input: "add link ",
+			want: []prompt.Suggest{
+				{Text: "me-span"},
+				{Text: "my-span"},
+			},
+		},
+		{
+			input: "add link me",
+			want: []prompt.Suggest{
+				{Text: "me-span"},
+			},
+		},
+		{
+			input: "add link me-span ",
+			want: []prompt.Suggest{
+				{Text: "me-span"},
+				{Text: "my-span"},
+			},
+		},
+		{
+			input: "add link me-span my",
+			want: []prompt.Suggest{
+				{Text: "my-span"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			telemetry.InitStore()
+			telemetry.CreateTrace("my-trace")
+			telemetry.CreateResource("my-resource", map[string]string{"key": "value"})
+			telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{"key": "value"})
+			telemetry.SetResourceToSpan("my-span", "my-resource")
+			telemetry.CreateTrace("me-trace")
+			telemetry.CreateResource("me-resource", map[string]string{"key": "value"})
+			telemetry.AddSpanToTrace("me-trace", "me-span", map[string]string{"key": "value"})
+			telemetry.SetResourceToSpan("me-span", "me-resource")
+
+			buf := prompt.NewBuffer()
+			buf.InsertText(tt.input, false, true)
+			doc := buf.Document()
+			got := Completer(*doc)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestCompleteList(t *testing.T) {
 	tests := []struct {
 		input string

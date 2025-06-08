@@ -20,10 +20,15 @@ type Span struct {
 	Attributes map[string]string
 	Children   []*Span
 	Resource   *Resource
+	Links      []*Span
 }
 
 func (s *Span) AddChild(child *Span) {
 	s.Children = append(s.Children, child)
+}
+
+func (s *Span) AddLink(link *Span) {
+	s.Links = append(s.Links, link)
 }
 
 type Trace struct {
@@ -169,6 +174,19 @@ func AddSpanToSpan(parentSpanName, spanName string, attributes map[string]string
 	return &span, nil
 }
 
+func AddLinkToSpan(from, to string) (*Span, error) {
+	fromSpan, ok := store.spans[from]
+	if !ok {
+		return nil, fmt.Errorf("from span %s not found", from)
+	}
+	toSpan, ok := store.spans[to]
+	if !ok {
+		return nil, fmt.Errorf("to span %s not found", to)
+	}
+	fromSpan.AddLink(toSpan)
+	return toSpan, nil
+}
+
 func SetResourceToSpan(spanName, resourceName string) (*Resource, error) {
 	span, ok := store.spans[spanName]
 	if !ok {
@@ -184,14 +202,37 @@ func SetResourceToSpan(spanName, resourceName string) (*Resource, error) {
 }
 
 func SendAllTraces() {
+	spans := make(map[string]trace.Span)
 	for _, traceData := range store.traces {
 		if traceData.RootSpan != nil {
 			spanCount := 0
-			processSpan(nil, traceData.RootSpan, &spanCount, 1.0, nil)
+			processSpan(nil, traceData.RootSpan, &spanCount, 1.0, nil, spans)
 			fmt.Printf("Trace '%s' sent with %d spans.\n", traceData.Name, spanCount)
 		} else {
 			fmt.Printf("Trace '%s' has no spans.\n", traceData.Name)
 		}
+	}
+	// loop again to link spans and finish them
+	for name, span := range spans {
+		storedSpan, exists := store.spans[name]
+		if !exists {
+			fmt.Printf("Warning: Span '%s' not found in store, cannot link.\n", name)
+			span.End()
+			continue
+		}
+		if len(storedSpan.Links) > 0 {
+			for _, link := range storedSpan.Links {
+				if linkedSpan, exists := spans[link.Name]; exists {
+					span.AddLink(trace.Link{
+						SpanContext: linkedSpan.SpanContext(),
+						// TODO: Add attributes
+					})
+				} else {
+					fmt.Printf("Warning: Linked span '%s' not found for span '%s'.\n", link.Name, name)
+				}
+			}
+		}
+		span.End()
 	}
 
 	InitStore()
@@ -206,7 +247,7 @@ func SendAllTraces() {
 // - Root span takes 1 second (current time - 1s to current time)
 // - Each child span takes 90% of parent's duration
 // - Child spans are centered within their parent's timeframe
-func processSpan(parentCtx context.Context, s *Span, spanCount *int, parentDuration float64, parentStartTime *time.Time) {
+func processSpan(parentCtx context.Context, s *Span, spanCount *int, parentDuration float64, parentStartTime *time.Time, spans map[string]trace.Span) {
 	var tracer trace.Tracer
 	if s.Resource != nil {
 		tm := GetTracerManager()
@@ -251,12 +292,12 @@ func processSpan(parentCtx context.Context, s *Span, spanCount *int, parentDurat
 		spanCtx, span = tracer.Start(parentCtx, s.Name, trace.WithAttributes(attrs...), trace.WithTimestamp(startTime))
 	}
 
+	spans[s.Name] = span
+
 	*spanCount++
 
 	for _, childSpan := range s.Children {
 		childDuration := parentDuration * 0.9
-		processSpan(spanCtx, childSpan, spanCount, childDuration, &startTime)
+		processSpan(spanCtx, childSpan, spanCount, childDuration, &startTime, spans)
 	}
-
-	span.End()
 }

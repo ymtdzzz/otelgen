@@ -13,6 +13,7 @@ var commandSuggestions = map[string][]prompt.Suggest{
 	"": {
 		{Text: "create", Description: "Create a new signal"},
 		{Text: "set", Description: "Update an existing signal"},
+		{Text: "add", Description: "Add something to a signal"},
 		{Text: "send", Description: "Send all traces to the collector"},
 		{Text: "list", Description: "List available traces and spans"},
 		{Text: "exit", Description: "Exit the application"},
@@ -41,6 +42,9 @@ var commandSuggestions = map[string][]prompt.Suggest{
 	},
 	"set_resource_operations": {
 		{Text: "name", Description: "Set a new name for the resource"},
+	},
+	"add_type": {
+		{Text: "link", Description: "Add a link to the span"},
 	},
 	"list": {
 		{Text: "traces", Description: "List all available traces"},
@@ -177,6 +181,16 @@ func (c *completerContext) completeSetResource() []prompt.Suggest {
 	return []prompt.Suggest{}
 }
 
+func (c *completerContext) completeAdd() []prompt.Suggest {
+	if c.parsed.AddLink.Link == nil {
+		return prompt.FilterHasPrefix(commandSuggestions["add_type"], c.currentWord, false)
+	}
+	if c.isInputInProgress("link") || (c.parsed.AddLink.From != nil && c.isInputInProgress(*c.parsed.AddLink.From)) {
+		return prompt.FilterHasPrefix(convertSpansToSuggestions(), c.currentWord, false)
+	}
+	return []prompt.Suggest{}
+}
+
 func (c *completerContext) completeList() []prompt.Suggest {
 	if c.parsed.List.Type == nil {
 		return prompt.FilterHasPrefix(commandSuggestions["list"], c.currentWord, false)
@@ -219,6 +233,8 @@ func Completer(d prompt.Document) []prompt.Suggest {
 		return cctx.completeCreate()
 	case cctx.parsed.Set != nil:
 		return cctx.completeSet()
+	case cctx.parsed.AddLink != nil:
+		return cctx.completeAdd()
 	case cctx.parsed.List != nil:
 		return cctx.completeList()
 	}

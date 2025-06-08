@@ -10,11 +10,12 @@ import (
 )
 
 type Command struct {
-	Create *CreateCommand `parser:"@@"`
-	Set    *SetCommand    `parser:"| @@"`
-	List   *ListCommand   `parser:"| @@"`
-	Send   *SendCommand   `parser:"| @@"`
-	Exit   *ExitCommand   `parser:"| @@"`
+	Create  *CreateCommand  `parser:"@@"`
+	Set     *SetCommand     `parser:"| @@"`
+	AddLink *AddLinkCommand `parser:"| @@"`
+	List    *ListCommand    `parser:"| @@"`
+	Send    *SendCommand    `parser:"| @@"`
+	Exit    *ExitCommand    `parser:"| @@"`
 }
 
 type ExitCommand struct {
@@ -238,6 +239,29 @@ func (s *SetCommand) HasArgResource() bool {
 		}
 	}
 	return false
+}
+
+type AddLinkCommand struct {
+	Add  string  `parser:"'add'"`
+	Link *string `parser:"[ @'link' ]"`
+	From *string `parser:"[ @Ident ]"`
+	To   *string `parser:"[ @Ident ]"`
+}
+
+func (c *AddLinkCommand) Validate() error {
+	if c.From == nil || c.To == nil {
+		return fmt.Errorf("both 'from' and 'to' must be specified for add link command")
+	}
+
+	if !telemetry.IsSpanExists(*c.From) {
+		return fmt.Errorf("span '%s' does not exist", *c.From)
+	}
+
+	if !telemetry.IsSpanExists(*c.To) {
+		return fmt.Errorf("span '%s' does not exist", *c.To)
+	}
+
+	return nil
 }
 
 type ListCommand struct {
