@@ -36,6 +36,7 @@ var commandSuggestions = map[string][]prompt.Suggest{
 	"set_type": {
 		{Text: "resource", Description: "Update a resource"},
 		{Text: "span", Description: "Update a span"},
+		{Text: "event", Description: "Update an event"},
 	},
 	"set_span_operations": {
 		{Text: "name", Description: "Set a new name for the span"},
@@ -43,6 +44,9 @@ var commandSuggestions = map[string][]prompt.Suggest{
 	},
 	"set_resource_operations": {
 		{Text: "name", Description: "Set a new name for the resource"},
+	},
+	"set_event_operations": {
+		{Text: "name", Description: "Set a new name for the event"},
 	},
 	"add_type": {
 		{Text: "link", Description: "Add a link to the span"},
@@ -154,6 +158,8 @@ func (c *completerContext) completeSet() []prompt.Suggest {
 		return c.completeSetSpan()
 	case "resource":
 		return c.completeSetResource()
+	case "event":
+		return c.completeSetEvent()
 	}
 	return []prompt.Suggest{}
 }
@@ -191,6 +197,18 @@ func (c *completerContext) completeSetResource() []prompt.Suggest {
 	}
 	if !c.isInputInProgress("name") {
 		return prompt.FilterHasPrefix(commandSuggestions["set_resource_operations"], c.currentWord, false)
+	}
+
+	return []prompt.Suggest{}
+}
+
+func (c *completerContext) completeSetEvent() []prompt.Suggest {
+	// 'set event ' or 'set event ev...'
+	if (c.parsed.Set.Name == nil && strings.HasSuffix(c.inputText, " ")) || c.isInputInProgress("event") {
+		return prompt.FilterHasPrefix(convertEventsToSuggestions(), c.currentWord, false)
+	}
+	if !c.isInputInProgress("name") {
+		return prompt.FilterHasPrefix(commandSuggestions["set_event_operations"], c.currentWord, false)
 	}
 
 	return []prompt.Suggest{}

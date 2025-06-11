@@ -169,7 +169,7 @@ func (arg *SetArg) addOps(ops []string) []string {
 
 type SetCommand struct {
 	Set  string    `parser:"'set'"`
-	Type *string   `parser:"[ @('resource' | 'span') ]"`
+	Type *string   `parser:"[ @('resource' | 'span' | 'event') ]"`
 	Name *string   `parser:"[ @Ident ]"`
 	Args []*SetArg `parser:"@@*"`
 }
@@ -191,6 +191,10 @@ func (s *SetCommand) Validate() error {
 	case "resource":
 		if _, exists := telemetry.GetResources()[*s.Name]; !exists {
 			return fmt.Errorf("resource '%s' does not exist", *s.Name)
+		}
+	case "event":
+		if _, exists := telemetry.GetEvents()[*s.Name]; !exists {
+			return fmt.Errorf("event '%s' does not exist", *s.Name)
 		}
 	}
 

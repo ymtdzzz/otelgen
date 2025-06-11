@@ -105,6 +105,10 @@ func TestSetCommandValidate(t *testing.T) {
 			input: "set resource non-existing-resource name new-resource-name",
 			want:  fmt.Errorf("resource 'non-existing-resource' does not exist"),
 		},
+		{
+			input: "set event non-existing-event name new-event-name",
+			want:  fmt.Errorf("event 'non-existing-event' does not exist"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -112,6 +116,7 @@ func TestSetCommandValidate(t *testing.T) {
 			telemetry.InitStore()
 			telemetry.CreateTrace("my-trace")
 			telemetry.CreateResource("my-resource", map[string]string{"key": "value"})
+			telemetry.CreateEvent("my-event", map[string]string{"key": "value"})
 			telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{"key": "value"})
 			telemetry.SetResourceToSpan("my-span", "my-resource")
 

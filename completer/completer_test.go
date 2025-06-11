@@ -391,14 +391,57 @@ func TestCompleteSetResource(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			telemetry.InitStore()
-			telemetry.CreateTrace("my-trace")
 			telemetry.CreateResource("my-resource", map[string]string{"key": "value"})
-			telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{"key": "value"})
-			telemetry.SetResourceToSpan("my-span", "my-resource")
-			telemetry.CreateTrace("me-trace")
 			telemetry.CreateResource("me-resource", map[string]string{"key": "value"})
-			telemetry.AddSpanToTrace("me-trace", "me-span", map[string]string{"key": "value"})
-			telemetry.SetResourceToSpan("me-span", "me-resource")
+
+			buf := prompt.NewBuffer()
+			buf.InsertText(tt.input, false, true)
+			doc := buf.Document()
+			got := Completer(*doc)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestCompleteSetEvent(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []prompt.Suggest
+	}{
+		{
+			input: "set event ",
+			want: []prompt.Suggest{
+				{Text: "me-event"},
+				{Text: "my-event"},
+			},
+		},
+		{
+			input: "set event my",
+			want: []prompt.Suggest{
+				{Text: "my-event"},
+			},
+		},
+		{
+			input: "set event my-event ",
+			want:  commandSuggestions["set_event_operations"],
+		},
+		{
+			input: "set event my-event n",
+			want: []prompt.Suggest{
+				{Text: "name", Description: "Set a new name for the event"},
+			},
+		},
+		{
+			input: "set event my-event name ",
+			want:  []prompt.Suggest{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			telemetry.InitStore()
+			telemetry.CreateEvent("my-event", map[string]string{"key": "value"})
+			telemetry.CreateEvent("me-event", map[string]string{"key": "value"})
 
 			buf := prompt.NewBuffer()
 			buf.InsertText(tt.input, false, true)

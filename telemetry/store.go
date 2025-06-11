@@ -31,7 +31,7 @@ type Span struct {
 	Children   []*Span
 	Resource   *Resource
 	Links      []*Link
-	Events     []Event
+	Events     []*Event
 }
 
 func (s *Span) AddChild(child *Span) {
@@ -47,7 +47,7 @@ func (s *Span) AddLink(target *Span, attributes map[string]string) {
 }
 
 func (s *Span) AddEvent(event *Event) {
-	s.Events = append(s.Events, *event)
+	s.Events = append(s.Events, event)
 }
 
 type Trace struct {
@@ -180,6 +180,26 @@ func CreateEvent(name string, attributes map[string]string) *Event {
 	}
 	store.events[name] = &event
 	return &event
+}
+
+func UpdateEvent(name, newName string, attributes map[string]string) (*Event, error) {
+	event, ok := store.events[name]
+	if !ok {
+		return nil, fmt.Errorf("event %s not found", name)
+	}
+	if newName != "" {
+		if _, exists := store.events[newName]; exists {
+			return nil, fmt.Errorf("event with name %s already exists", newName)
+		}
+		delete(store.events, name)
+		event.Name = newName
+		store.events[newName] = event
+	}
+	if attributes != nil {
+		event.Attributes = make(map[string]string)
+		maps.Copy(event.Attributes, attributes)
+	}
+	return event, nil
 }
 
 func AddSpanToTrace(traceName, spanName string, attributes map[string]string) (*Span, error) {
