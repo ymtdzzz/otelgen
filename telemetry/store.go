@@ -274,7 +274,7 @@ func SetResourceToSpan(spanName, resourceName string) (*Resource, error) {
 }
 
 func SendAllTraces() {
-	spans := make(map[string]trace.Span)
+	spans := make(map[string]*spanToProcess)
 	for _, traceData := range store.traces {
 		if traceData.RootSpan != nil {
 			spanCount := 0
@@ -299,8 +299,8 @@ func SendAllTraces() {
 					for k, v := range link.Attributes {
 						attrs = append(attrs, attribute.String(k, v))
 					}
-					span.AddLink(trace.Link{
-						SpanContext: linkedSpan.SpanContext(),
+					span.span.AddLink(trace.Link{
+						SpanContext: linkedSpan.span.SpanContext(),
 						Attributes:  attrs,
 					})
 				} else {
@@ -319,11 +319,20 @@ func SendAllTraces() {
 	InitTracerManager(exporterFn, processorFn)
 }
 
+type spanToProcess struct {
+	span    trace.Span
+	endTime time.Time
+}
+
+func (s *spanToProcess) End() {
+	s.span.End(trace.WithTimestamp(s.endTime))
+}
+
 // processSpan handles span creation with duration distribution:
 // - Root span takes 1 second (current time - 1s to current time)
 // - Each child span takes 90% of parent's duration
 // - Child spans are centered within their parent's timeframe
-func processSpan(parentCtx context.Context, s *Span, spanCount *int, parentDuration float64, parentStartTime *time.Time, spans map[string]trace.Span) {
+func processSpan(parentCtx context.Context, s *Span, spanCount *int, parentDuration float64, parentStartTime *time.Time, spans map[string]*spanToProcess) {
 	var tracer trace.Tracer
 	if s.Resource != nil {
 		tm := GetTracerManager()
@@ -352,11 +361,13 @@ func processSpan(parentCtx context.Context, s *Span, spanCount *int, parentDurat
 		spanCtx   context.Context
 		span      trace.Span
 		startTime time.Time
+		endTime   time.Time
 	)
 
 	if parentCtx == nil {
 		now := time.Now()
 		startTime = now.Add(-1 * time.Second)
+		endTime = startTime.Add(time.Duration(parentDuration * float64(time.Second)))
 
 		spanCtx, span = tracer.Start(context.Background(), s.Name, trace.WithAttributes(attrs...), trace.WithTimestamp(startTime))
 	} else {
@@ -364,6 +375,7 @@ func processSpan(parentCtx context.Context, s *Span, spanCount *int, parentDurat
 
 		timePadding := time.Duration((parentDuration - childDuration) / 2 * float64(time.Second))
 		startTime = parentStartTime.Add(timePadding)
+		endTime = startTime.Add(time.Duration(childDuration * float64(time.Second)))
 
 		spanCtx, span = tracer.Start(parentCtx, s.Name, trace.WithAttributes(attrs...), trace.WithTimestamp(startTime))
 	}
@@ -376,7 +388,10 @@ func processSpan(parentCtx context.Context, s *Span, spanCount *int, parentDurat
 		span.AddEvent(event.Name, trace.WithAttributes(eventAttrs...))
 	}
 
-	spans[s.Name] = span
+	spans[s.Name] = &spanToProcess{
+		span:    span,
+		endTime: endTime,
+	}
 
 	*spanCount++
 
