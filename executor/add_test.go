@@ -62,3 +62,58 @@ func TestHandleAddLink_NonExistingSpan(t *testing.T) {
 		assert.Equal(t, "Error validating add link command: span 'non-existing-span' does not exist\n", output)
 	})
 }
+
+func TestHandleAddEvent_OK(t *testing.T) {
+	telemetry.InitStore()
+	telemetry.CreateTrace("my-trace")
+	telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{})
+	telemetry.CreateEvent("my-event", map[string]string{"key": "value"})
+
+	cmd, err := ParseCommand("add event my-span my-event")
+	assert.Nil(t, err, "ParseCommand should not return an error")
+	assert.NotNil(t, cmd.AddEvent, "AddEvent command should not be nil")
+
+	handleAddEventCommand(cmd.AddEvent)
+
+	span, exists := telemetry.GetSpans()["my-span"]
+	assert.True(t, exists)
+
+	events := span.Events
+	assert.Len(t, events, 1, "Span should have one event")
+	assert.Equal(t, "my-event", events[0].Name, "Event should be 'my-event'")
+	assert.Equal(t, "value", events[0].Attributes["key"], "Event should have attribute 'key' with value 'value'")
+}
+
+func TestHandleAddEvent_NonExistingSpan(t *testing.T) {
+	telemetry.InitStore()
+	telemetry.CreateTrace("my-trace")
+	telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{})
+	telemetry.CreateEvent("my-event", map[string]string{"key": "value"})
+
+	cmd, err := ParseCommand("add event non-existing-span my-event")
+	assert.Nil(t, err, "ParseCommand should not return an error")
+	assert.NotNil(t, cmd.AddEvent, "AddEvent command should not be nil")
+
+	output := captureOutput(func() {
+		handleAddEventCommand(cmd.AddEvent)
+	})
+
+	assert.Equal(t, "Error validating add event command: span 'non-existing-span' does not exist\n", output)
+}
+
+func TestHandleAddEvent_NonExistingEvent(t *testing.T) {
+	telemetry.InitStore()
+	telemetry.CreateTrace("my-trace")
+	telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{})
+	telemetry.CreateEvent("my-event", map[string]string{"key": "value"})
+
+	cmd, err := ParseCommand("add event my-span non-existing-event")
+	assert.Nil(t, err, "ParseCommand should not return an error")
+	assert.NotNil(t, cmd.AddEvent, "AddEvent command should not be nil")
+
+	output := captureOutput(func() {
+		handleAddEventCommand(cmd.AddEvent)
+	})
+
+	assert.Equal(t, "Error validating add event command: event 'non-existing-event' does not exist\n", output)
+}

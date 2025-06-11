@@ -80,6 +80,20 @@ func TestHandleCreateResource(t *testing.T) {
 	assert.Equal(t, map[string]string{"key": "value", "http.method": "GET"}, resource.Attributes, "Resource attributes should match")
 }
 
+func TestHandleCreateEvent_OK(t *testing.T) {
+	telemetry.InitStore()
+
+	cmd, err := ParseCommand("create event my-event attributes key=value,http.method=GET")
+	assert.Nil(t, err, "ParseCommand should not return an error")
+	assert.NotNil(t, cmd.Create, "Create command should not be nil")
+
+	handleCreateCommand(cmd.Create)
+	event, exists := telemetry.GetEvents()["my-event"]
+	assert.True(t, exists, "Event should exist after creation")
+	assert.Equal(t, "my-event", event.Name, "Event name should match")
+	assert.Equal(t, map[string]string{"key": "value", "http.method": "GET"}, event.Attributes, "Event attributes should match")
+}
+
 func TestHandleCreateCommand_ValidateError(t *testing.T) {
 	telemetry.InitStore()
 

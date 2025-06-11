@@ -21,6 +21,10 @@ func handleCreateCommand(cmd *CreateCommand) {
 		if err := handleCreateResource(cmd); err != nil {
 			fmt.Printf("Error creating resource: %v\n", err)
 		}
+	case "event":
+		if err := handleCreateEvent(cmd); err != nil {
+			fmt.Printf("Error creating event: %v\n", err)
+		}
 	default:
 		fmt.Printf("Unknown target type for create command: %s\n", *cmd.Type)
 	}
@@ -82,5 +86,21 @@ func handleCreateResource(cmd *CreateCommand) error {
 
 	resource := telemetry.CreateResource(*cmd.Name, attributes)
 	fmt.Printf("Created resource: %s with attributes: %v\n", resource.Name, attributes)
+	return nil
+}
+
+func handleCreateEvent(cmd *CreateCommand) error {
+	var (
+		attributes map[string]string
+	)
+
+	for _, arg := range cmd.Args {
+		if len(arg.Attrs) > 0 {
+			attributes = convertKeyValuesToMap(arg.Attrs)
+		}
+	}
+
+	resource := telemetry.CreateEvent(*cmd.Name, attributes)
+	fmt.Printf("Created event: %s with attributes: %v\n", resource.Name, attributes)
 	return nil
 }

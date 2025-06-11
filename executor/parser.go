@@ -10,12 +10,13 @@ import (
 )
 
 type Command struct {
-	Create  *CreateCommand  `parser:"@@"`
-	Set     *SetCommand     `parser:"| @@"`
-	AddLink *AddLinkCommand `parser:"| @@"`
-	List    *ListCommand    `parser:"| @@"`
-	Send    *SendCommand    `parser:"| @@"`
-	Exit    *ExitCommand    `parser:"| @@"`
+	Create   *CreateCommand   `parser:"@@"`
+	Set      *SetCommand      `parser:"| @@"`
+	AddLink  *AddLinkCommand  `parser:"| @@"`
+	AddEvent *AddEventCommand `parser:"| @@"`
+	List     *ListCommand     `parser:"| @@"`
+	Send     *SendCommand     `parser:"| @@"`
+	Exit     *ExitCommand     `parser:"| @@"`
 }
 
 type ExitCommand struct {
@@ -60,7 +61,7 @@ func (arg *CreateSetArg) addOps(ops []string) []string {
 
 type CreateCommand struct {
 	Create     string          `parser:"'create'"`
-	Type       *string         `parser:"[ @('resource'| 'span') ]"`
+	Type       *string         `parser:"[ @('resource'| 'span' | 'event') ]"`
 	Name       *string         `parser:"[ @Ident ]"`
 	Trace      *string         `parser:"[ 'in' 'trace' @Ident ]"`
 	ParentSpan *string         `parser:"[ 'with' 'parent' @Ident ]"`
@@ -241,7 +242,7 @@ func (arg *AddLinkArg) addOps(ops []string) []string {
 
 type AddLinkCommand struct {
 	Add  string        `parser:"'add'"`
-	Link *string       `parser:"[ @'link' ]"`
+	Link string        `parser:"'link'"`
 	From *string       `parser:"[ @Ident ]"`
 	To   *string       `parser:"[ @Ident ]"`
 	Args []*AddLinkArg `parser:"@@*"`
@@ -278,6 +279,29 @@ func (c *AddLinkCommand) HasArgAttrs() bool {
 		}
 	}
 	return false
+}
+
+type AddEventCommand struct {
+	Add       string  `parser:"'add'"`
+	Event     string  `parser:"'event'"`
+	SpanName  *string `parser:"[ @Ident ]"`
+	EventName *string `parser:"[ @Ident ]"`
+}
+
+func (c *AddEventCommand) Validate() error {
+	if c.EventName == nil {
+		return fmt.Errorf("event name must be specified for add event command")
+	}
+
+	if !telemetry.IsSpanExists(*c.SpanName) {
+		return fmt.Errorf("span '%s' does not exist", *c.SpanName)
+	}
+
+	if !telemetry.IsEventExists(*c.EventName) {
+		return fmt.Errorf("event '%s' does not exist", *c.EventName)
+	}
+
+	return nil
 }
 
 type ListCommand struct {

@@ -28,6 +28,8 @@ func Executor(input string) {
 		handleSetCommand(cmd.Set)
 	case cmd.AddLink != nil:
 		handleAddLinkCommand(cmd.AddLink)
+	case cmd.AddEvent != nil:
+		handleAddEventCommand(cmd.AddEvent)
 	case cmd.Send != nil:
 		handleSendCommand()
 	case cmd.List != nil:

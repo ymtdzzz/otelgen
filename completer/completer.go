@@ -21,6 +21,7 @@ var commandSuggestions = map[string][]prompt.Suggest{
 	"create_type": {
 		{Text: "resource", Description: "Create a new resource"},
 		{Text: "span", Description: "Create a new span"},
+		{Text: "event", Description: "Create a new event"},
 	},
 	"create_in_or_with": {
 		{Text: "in", Description: "Create a span in a trace"},
@@ -45,6 +46,7 @@ var commandSuggestions = map[string][]prompt.Suggest{
 	},
 	"add_type": {
 		{Text: "link", Description: "Add a link to the span"},
+		{Text: "event", Description: "Add an event to the span"},
 	},
 	"list": {
 		{Text: "traces", Description: "List all available traces"},
@@ -68,6 +70,8 @@ func (c *completerContext) completeCreate() []prompt.Suggest {
 		return c.completeCreateSpan()
 	case "resource":
 		return c.completeCreateResource()
+	case "event":
+		return c.completeCreateEvent()
 	}
 	return []prompt.Suggest{}
 }
@@ -119,13 +123,24 @@ func (c *completerContext) completeCreateSpan() []prompt.Suggest {
 
 func (c *completerContext) completeCreateResource() []prompt.Suggest {
 	if !c.parsed.Create.HasArgAttrs() && c.parsed.Create.Name != nil {
-		if strings.Contains(c.inputText, "attributes ") {
+		if c.isInputInProgress("attributes") {
 			return []prompt.Suggest{}
-		} else {
-			return prompt.FilterHasPrefix([]prompt.Suggest{
-				{Text: "attributes", Description: "Add attributes to the resource"},
-			}, c.currentWord, false)
 		}
+		return prompt.FilterHasPrefix([]prompt.Suggest{
+			{Text: "attributes", Description: "Add attributes to the resource"},
+		}, c.currentWord, false)
+	}
+	return []prompt.Suggest{}
+}
+
+func (c *completerContext) completeCreateEvent() []prompt.Suggest {
+	if !c.parsed.Create.HasArgAttrs() && c.parsed.Create.Name != nil {
+		if c.isInputInProgress("attributes") {
+			return []prompt.Suggest{}
+		}
+		return prompt.FilterHasPrefix([]prompt.Suggest{
+			{Text: "attributes", Description: "Add attributes to the resource"},
+		}, c.currentWord, false)
 	}
 	return []prompt.Suggest{}
 }
@@ -181,10 +196,7 @@ func (c *completerContext) completeSetResource() []prompt.Suggest {
 	return []prompt.Suggest{}
 }
 
-func (c *completerContext) completeAdd() []prompt.Suggest {
-	if c.parsed.AddLink.Link == nil {
-		return prompt.FilterHasPrefix(commandSuggestions["add_type"], c.currentWord, false)
-	}
+func (c *completerContext) completeAddLink() []prompt.Suggest {
 	if c.isInputInProgress("link") || (c.parsed.AddLink.From != nil && c.isInputInProgress(*c.parsed.AddLink.From)) {
 		return prompt.FilterHasPrefix(convertSpansToSuggestions(), c.currentWord, false)
 	}
@@ -201,6 +213,16 @@ func (c *completerContext) completeAdd() []prompt.Suggest {
 	return []prompt.Suggest{}
 }
 
+func (c *completerContext) completeAddEvent() []prompt.Suggest {
+	if c.isInputInProgress("event") {
+		return prompt.FilterHasPrefix(convertSpansToSuggestions(), c.currentWord, false)
+	}
+	if c.parsed.AddEvent.EventName == nil || c.isInputInProgress(*c.parsed.AddEvent.SpanName) {
+		return prompt.FilterHasPrefix(convertEventsToSuggestions(), c.currentWord, false)
+	}
+	return []prompt.Suggest{}
+}
+
 func (c *completerContext) completeList() []prompt.Suggest {
 	if c.parsed.List.Type == nil {
 		return prompt.FilterHasPrefix(commandSuggestions["list"], c.currentWord, false)
@@ -209,6 +231,10 @@ func (c *completerContext) completeList() []prompt.Suggest {
 }
 
 func (c *completerContext) isInputInProgress(cmd string) bool {
+	if len(c.partialInput) < 2 {
+		return (c.partialInput[0] == cmd && strings.HasSuffix(c.inputText, " "))
+	}
+
 	return (c.partialInput[len(c.partialInput)-2] == cmd && !strings.HasSuffix(c.inputText, " ")) ||
 		(c.partialInput[len(c.partialInput)-1] == cmd && strings.HasSuffix(c.inputText, " "))
 }
@@ -238,13 +264,19 @@ func Completer(d prompt.Document) []prompt.Suggest {
 		return []prompt.Suggest{}
 	}
 
+	if cctx.isInputInProgress("add") {
+		return prompt.FilterHasPrefix(commandSuggestions["add_type"], cctx.currentWord, false)
+	}
+
 	switch {
 	case cctx.parsed.Create != nil:
 		return cctx.completeCreate()
 	case cctx.parsed.Set != nil:
 		return cctx.completeSet()
 	case cctx.parsed.AddLink != nil:
-		return cctx.completeAdd()
+		return cctx.completeAddLink()
+	case cctx.parsed.AddEvent != nil:
+		return cctx.completeAddEvent()
 	case cctx.parsed.List != nil:
 		return cctx.completeList()
 	}
@@ -278,6 +310,17 @@ func convertResourcesToSuggestions() []prompt.Suggest {
 	var suggestions []prompt.Suggest
 	for resourceName := range telemetry.GetResources() {
 		suggestions = append(suggestions, prompt.Suggest{Text: resourceName})
+	}
+	sort.Slice(suggestions, func(i, j int) bool {
+		return suggestions[i].Text < suggestions[j].Text
+	})
+	return suggestions
+}
+
+func convertEventsToSuggestions() []prompt.Suggest {
+	var suggestions []prompt.Suggest
+	for eventName := range telemetry.GetEvents() {
+		suggestions = append(suggestions, prompt.Suggest{Text: eventName})
 	}
 	sort.Slice(suggestions, func(i, j int) bool {
 		return suggestions[i].Text < suggestions[j].Text

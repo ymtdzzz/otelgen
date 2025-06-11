@@ -456,6 +456,20 @@ func TestCompleteAdd(t *testing.T) {
 				{Text: "attributes", Description: "Add attributes to the link"},
 			},
 		},
+		{
+			input: "add event ",
+			want: []prompt.Suggest{
+				{Text: "me-span"},
+				{Text: "my-span"},
+			},
+		},
+		{
+			input: "add event me-span ",
+			want: []prompt.Suggest{
+				{Text: "me-event"},
+				{Text: "my-event"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -463,10 +477,12 @@ func TestCompleteAdd(t *testing.T) {
 			telemetry.InitStore()
 			telemetry.CreateTrace("my-trace")
 			telemetry.CreateResource("my-resource", map[string]string{"key": "value"})
+			telemetry.CreateEvent("my-event", map[string]string{"key": "value"})
 			telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{"key": "value"})
 			telemetry.SetResourceToSpan("my-span", "my-resource")
 			telemetry.CreateTrace("me-trace")
 			telemetry.CreateResource("me-resource", map[string]string{"key": "value"})
+			telemetry.CreateEvent("me-event", map[string]string{"key": "value"})
 			telemetry.AddSpanToTrace("me-trace", "me-span", map[string]string{"key": "value"})
 			telemetry.SetResourceToSpan("me-span", "me-resource")
 

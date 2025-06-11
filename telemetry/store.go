@@ -20,12 +20,18 @@ type Link struct {
 	Attributes map[string]string
 }
 
+type Event struct {
+	Name       string
+	Attributes map[string]string
+}
+
 type Span struct {
 	Name       string
 	Attributes map[string]string
 	Children   []*Span
 	Resource   *Resource
 	Links      []*Link
+	Events     []Event
 }
 
 func (s *Span) AddChild(child *Span) {
@@ -40,6 +46,10 @@ func (s *Span) AddLink(target *Span, attributes map[string]string) {
 	s.Links = append(s.Links, link)
 }
 
+func (s *Span) AddEvent(event *Event) {
+	s.Events = append(s.Events, *event)
+}
+
 type Trace struct {
 	Name     string
 	RootSpan *Span
@@ -49,6 +59,7 @@ type Store struct {
 	traces    map[string]*Trace
 	spans     map[string]*Span
 	resources map[string]*Resource
+	events    map[string]*Event
 }
 
 var store *Store
@@ -58,6 +69,7 @@ func InitStore() {
 		traces:    make(map[string]*Trace),
 		spans:     make(map[string]*Span),
 		resources: make(map[string]*Resource),
+		events:    make(map[string]*Event),
 	}
 }
 
@@ -73,6 +85,10 @@ func GetResources() map[string]*Resource {
 	return store.resources
 }
 
+func GetEvents() map[string]*Event {
+	return store.events
+}
+
 func IsTraceExists(name string) bool {
 	_, exists := store.traces[name]
 	return exists
@@ -85,6 +101,11 @@ func IsSpanExists(name string) bool {
 
 func IsResourceExists(name string) bool {
 	_, exists := store.resources[name]
+	return exists
+}
+
+func IsEventExists(name string) bool {
+	_, exists := store.events[name]
 	return exists
 }
 
@@ -152,6 +173,15 @@ func UpdateResource(name, newName string, attributes map[string]string) (*Resour
 	return resource, nil
 }
 
+func CreateEvent(name string, attributes map[string]string) *Event {
+	event := Event{
+		Name:       name,
+		Attributes: attributes,
+	}
+	store.events[name] = &event
+	return &event
+}
+
 func AddSpanToTrace(traceName, spanName string, attributes map[string]string) (*Span, error) {
 	trace, ok := store.traces[traceName]
 	if !ok {
@@ -194,6 +224,19 @@ func AddLinkToSpan(from, to string, attributes map[string]string) (*Span, error)
 	}
 	fromSpan.AddLink(toSpan, attributes)
 	return toSpan, nil
+}
+
+func AddEventToSpan(spanName, eventName string) (*Event, error) {
+	span, ok := store.spans[spanName]
+	if !ok {
+		return nil, fmt.Errorf("span %s not found", spanName)
+	}
+	event, ok := store.events[eventName]
+	if !ok {
+		return nil, fmt.Errorf("event %s not found", eventName)
+	}
+	span.AddEvent(event)
+	return event, nil
 }
 
 func SetResourceToSpan(spanName, resourceName string) (*Resource, error) {
@@ -303,6 +346,14 @@ func processSpan(parentCtx context.Context, s *Span, spanCount *int, parentDurat
 		startTime = parentStartTime.Add(timePadding)
 
 		spanCtx, span = tracer.Start(parentCtx, s.Name, trace.WithAttributes(attrs...), trace.WithTimestamp(startTime))
+	}
+
+	for _, event := range s.Events {
+		eventAttrs := []attribute.KeyValue{}
+		for k, v := range event.Attributes {
+			eventAttrs = append(eventAttrs, attribute.String(k, v))
+		}
+		span.AddEvent(event.Name, trace.WithAttributes(eventAttrs...))
 	}
 
 	spans[s.Name] = span

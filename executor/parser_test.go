@@ -30,6 +30,10 @@ func TestCreateCommandValidate(t *testing.T) {
 			want:  fmt.Errorf("type and name must be specified for create command"),
 		},
 		{
+			input: "create event",
+			want:  fmt.Errorf("type and name must be specified for create command"),
+		},
+		{
 			input: "create span span1",
 			want:  fmt.Errorf("span must be created in a trace or with a parent span"),
 		},
@@ -162,6 +166,45 @@ func TestAddLinkCommandValidate(t *testing.T) {
 			assert.Nil(t, err, "ParseCommand should not return an error for input: %s", tt.input)
 			assert.NotNil(t, gotCmd.AddLink, "AddLink command should not be nil for input: %s", tt.input)
 			gotErr := gotCmd.AddLink.Validate()
+			assert.Equal(t, tt.want, gotErr, "Validate should return %v for input: %s", tt.want, tt.input)
+		})
+	}
+}
+
+func TestAddEventCommandValidate(t *testing.T) {
+	tests := []struct {
+		input string
+		want  error
+	}{
+		{
+			input: "add event my-span my-event",
+			want:  nil,
+		},
+		{
+			input: "add event",
+			want:  fmt.Errorf("event name must be specified for add event command"),
+		},
+		{
+			input: "add event wrong-span my-event",
+			want:  fmt.Errorf("span 'wrong-span' does not exist"),
+		},
+		{
+			input: "add event my-span wrong-event",
+			want:  fmt.Errorf("event 'wrong-event' does not exist"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			telemetry.InitStore()
+			telemetry.CreateTrace("my-trace")
+			telemetry.AddSpanToTrace("my-trace", "my-span", map[string]string{"key": "value"})
+			telemetry.CreateEvent("my-event", map[string]string{"key": "value"})
+
+			gotCmd, err := ParseCommand(tt.input)
+			assert.Nil(t, err, "ParseCommand should not return an error for input: %s", tt.input)
+			assert.NotNil(t, gotCmd.AddEvent, "AddEvent command should not be nil for input: %s", tt.input)
+			gotErr := gotCmd.AddEvent.Validate()
 			assert.Equal(t, tt.want, gotErr, "Validate should return %v for input: %s", tt.want, tt.input)
 		})
 	}

@@ -171,6 +171,11 @@ func TestSendAllTraces(t *testing.T) {
 		"environment":     "test",
 	})
 
+	// Event
+	event := CreateEvent("test_event", map[string]string{
+		"event.type": "test",
+	})
+
 	// Spans
 	rootSpanName := "root_span"
 	rootSpan, err := AddSpanToTrace(traceName, rootSpanName, map[string]string{
@@ -212,6 +217,9 @@ func TestSendAllTraces(t *testing.T) {
 	// Link
 	rootSpan.AddLink(childSpan2, map[string]string{"key": "value"})
 
+	// Event
+	rootSpan.AddEvent(event)
+
 	_, err = SetResourceToSpan(childSpan2Name, resourceName)
 	assert.NoError(t, err)
 
@@ -246,8 +254,13 @@ func TestSendAllTraces(t *testing.T) {
 		gotSpanName := span.Name()
 		if gotSpanName == rootSpanName {
 			assert.Equal(t, gotSpans[childSpan2Name].SpanContext().SpanID(), gotSpans[rootSpanName].Links()[0].SpanContext.SpanID())
+			// Link
 			assert.Len(t, span.Links(), 1, "Root span should have one link to child_span_2")
 			assert.Equal(t, "value", span.Links()[0].Attributes[0].Value.AsString(), "Link attribute should match")
+			// Event
+			assert.Len(t, span.Events(), 1, "Root span should have one event")
+			assert.Equal(t, "test_event", span.Events()[0].Name, "Event name should match")
+			assert.Equal(t, "test", getAttributeValue(span.Events()[0].Attributes, "event.type"), "Event type should match")
 		} else if gotSpanName == childSpan1Name {
 			assert.Equal(t, gotSpans[rootSpanName].SpanContext().SpanID(), span.Parent().SpanID())
 		} else if gotSpanName == grandChildSpanName {

@@ -29,3 +29,16 @@ func handleAddLinkCommand(cmd *AddLinkCommand) {
 	}
 	fmt.Printf("Added link from '%s' to '%s'\n", *cmd.From, *cmd.To)
 }
+
+func handleAddEventCommand(cmd *AddEventCommand) {
+	if err := cmd.Validate(); err != nil {
+		fmt.Printf("Error validating add event command: %v\n", err)
+		return
+	}
+
+	if _, err := telemetry.AddEventToSpan(*cmd.SpanName, *cmd.EventName); err != nil {
+		fmt.Printf("Error adding event to span: %v\n", err)
+		return
+	}
+	fmt.Printf("Added event '%s' to span '%s'\n", *cmd.EventName, *cmd.SpanName)
+}
