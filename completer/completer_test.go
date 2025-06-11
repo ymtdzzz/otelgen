@@ -450,6 +450,12 @@ func TestCompleteAdd(t *testing.T) {
 				{Text: "my-span"},
 			},
 		},
+		{
+			input: "add link me-span my-span ",
+			want: []prompt.Suggest{
+				{Text: "attributes", Description: "Add attributes to the link"},
+			},
+		},
 	}
 
 	for _, tt := range tests {

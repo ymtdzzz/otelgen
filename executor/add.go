@@ -12,7 +12,17 @@ func handleAddLinkCommand(cmd *AddLinkCommand) {
 		return
 	}
 
-	_, err := telemetry.AddLinkToSpan(*cmd.From, *cmd.To)
+	var (
+		attributes map[string]string
+	)
+
+	for _, arg := range cmd.Args {
+		if arg.Attrs != nil {
+			attributes = convertKeyValuesToMap(arg.Attrs)
+		}
+	}
+
+	_, err := telemetry.AddLinkToSpan(*cmd.From, *cmd.To, attributes)
 	if err != nil {
 		fmt.Printf("Error adding link: %v\n", err)
 		return

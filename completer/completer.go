@@ -188,6 +188,16 @@ func (c *completerContext) completeAdd() []prompt.Suggest {
 	if c.isInputInProgress("link") || (c.parsed.AddLink.From != nil && c.isInputInProgress(*c.parsed.AddLink.From)) {
 		return prompt.FilterHasPrefix(convertSpansToSuggestions(), c.currentWord, false)
 	}
+	if c.parsed.AddLink.From != nil && c.parsed.AddLink.To != nil {
+		if c.isInputInProgress("attributes") {
+			return []prompt.Suggest{}
+		}
+		if !c.parsed.AddLink.HasArgAttrs() {
+			return prompt.FilterHasPrefix([]prompt.Suggest{
+				{Text: "attributes", Description: "Add attributes to the link"},
+			}, c.currentWord, false)
+		}
+	}
 	return []prompt.Suggest{}
 }
 

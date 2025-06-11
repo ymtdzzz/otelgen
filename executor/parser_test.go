@@ -79,15 +79,15 @@ func TestSetCommandValidate(t *testing.T) {
 		},
 		{
 			input: "set span my-span resource my-resource name new-my-span resource another-resource",
-			want:  fmt.Errorf("duplicate operation: resource"),
+			want:  fmt.Errorf("duplicated operation: resource"),
 		},
 		{
 			input: "set span my-span name new-my-span resource my-resource name new-my-span-2",
-			want:  fmt.Errorf("duplicate operation: name"),
+			want:  fmt.Errorf("duplicated operation: name"),
 		},
 		{
 			input: "set span my-span attributes key=val name new-my-span attributes another_key=another_val",
-			want:  fmt.Errorf("duplicate operation: attributes"),
+			want:  fmt.Errorf("duplicated operation: attributes"),
 		},
 		{
 			input: "set span non-existing-span name new-my-span",
@@ -127,6 +127,10 @@ func TestAddLinkCommandValidate(t *testing.T) {
 	}{
 		{
 			input: "add link my-span another-span",
+			want:  nil,
+		},
+		{
+			input: "add link my-span another-span attributes key=value",
 			want:  nil,
 		},
 		{

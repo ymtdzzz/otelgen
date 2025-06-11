@@ -210,7 +210,7 @@ func TestSendAllTraces(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Link
-	rootSpan.AddLink(childSpan2)
+	rootSpan.AddLink(childSpan2, map[string]string{"key": "value"})
 
 	_, err = SetResourceToSpan(childSpan2Name, resourceName)
 	assert.NoError(t, err)
@@ -246,6 +246,8 @@ func TestSendAllTraces(t *testing.T) {
 		gotSpanName := span.Name()
 		if gotSpanName == rootSpanName {
 			assert.Equal(t, gotSpans[childSpan2Name].SpanContext().SpanID(), gotSpans[rootSpanName].Links()[0].SpanContext.SpanID())
+			assert.Len(t, span.Links(), 1, "Root span should have one link to child_span_2")
+			assert.Equal(t, "value", span.Links()[0].Attributes[0].Value.AsString(), "Link attribute should match")
 		} else if gotSpanName == childSpan1Name {
 			assert.Equal(t, gotSpans[rootSpanName].SpanContext().SpanID(), span.Parent().SpanID())
 		} else if gotSpanName == grandChildSpanName {

@@ -48,6 +48,16 @@ func (arg *CreateSetArg) Validate(t string) error {
 	return nil
 }
 
+func (arg *CreateSetArg) addOps(ops []string) []string {
+	if arg.Resource != nil {
+		ops = append(ops, "resource")
+	}
+	if len(arg.Attrs) > 0 {
+		ops = append(ops, "attributes")
+	}
+	return ops
+}
+
 type CreateCommand struct {
 	Create     string          `parser:"'create'"`
 	Type       *string         `parser:"[ @('resource'| 'span') ]"`
@@ -62,23 +72,12 @@ func (c *CreateCommand) Validate() error {
 		return fmt.Errorf("type and name must be specified for create command")
 	}
 
-	// check duplicates in operations
-	seen := make(map[string]bool)
+	var ops []string
 	for _, arg := range c.Args {
-		if arg.Resource != nil {
-			opName := "resource"
-			if seen[opName] {
-				return fmt.Errorf("duplicate operation: %s", opName)
-			}
-			seen[opName] = true
-		}
-		if len(arg.Attrs) > 0 {
-			opName := "attributes"
-			if seen[opName] {
-				return fmt.Errorf("duplicate operation: %s", opName)
-			}
-			seen[opName] = true
-		}
+		ops = arg.addOps(ops)
+	}
+	if err := checkDuplicateOps(ops); err != nil {
+		return err
 	}
 
 	if *c.Type == "span" {
@@ -157,6 +156,16 @@ func (arg *SetArg) Validate(t string) error {
 	return nil
 }
 
+func (arg *SetArg) addOps(ops []string) []string {
+	if arg.SetCreateArg != nil {
+		ops = arg.SetCreateArg.addOps(ops)
+	}
+	if arg.SetOnlyArg != nil && arg.SetOnlyArg.Name != nil {
+		ops = append(ops, "name")
+	}
+	return ops
+}
+
 type SetCommand struct {
 	Set  string    `parser:"'set'"`
 	Type *string   `parser:"[ @('resource' | 'span') ]"`
@@ -184,34 +193,12 @@ func (s *SetCommand) Validate() error {
 		}
 	}
 
-	// check duplicates in operations
-	seen := make(map[string]bool)
+	var ops []string
 	for _, arg := range s.Args {
-		if arg.SetCreateArg != nil {
-			if arg.SetCreateArg.Resource != nil {
-				opName := "resource"
-				if seen[opName] {
-					return fmt.Errorf("duplicate operation: %s", opName)
-				}
-				seen[opName] = true
-			}
-			if len(arg.SetCreateArg.Attrs) > 0 {
-				opName := "attributes"
-				if seen[opName] {
-					return fmt.Errorf("duplicate operation: %s", opName)
-				}
-				seen[opName] = true
-			}
-		}
-		if arg.SetOnlyArg != nil {
-			if arg.SetOnlyArg.Name != nil {
-				opName := "name"
-				if seen[opName] {
-					return fmt.Errorf("duplicate operation: %s", opName)
-				}
-				seen[opName] = true
-			}
-		}
+		ops = arg.addOps(ops)
+	}
+	if err := checkDuplicateOps(ops); err != nil {
+		return err
 	}
 
 	for _, arg := range s.Args {
@@ -241,16 +228,36 @@ func (s *SetCommand) HasArgResource() bool {
 	return false
 }
 
+type AddLinkArg struct {
+	Attrs []*KeyValue `parser:"('attributes' @@ { ',' @@ } )"`
+}
+
+func (arg *AddLinkArg) addOps(ops []string) []string {
+	if len(arg.Attrs) > 0 {
+		ops = append(ops, "attributes")
+	}
+	return ops
+}
+
 type AddLinkCommand struct {
-	Add  string  `parser:"'add'"`
-	Link *string `parser:"[ @'link' ]"`
-	From *string `parser:"[ @Ident ]"`
-	To   *string `parser:"[ @Ident ]"`
+	Add  string        `parser:"'add'"`
+	Link *string       `parser:"[ @'link' ]"`
+	From *string       `parser:"[ @Ident ]"`
+	To   *string       `parser:"[ @Ident ]"`
+	Args []*AddLinkArg `parser:"@@*"`
 }
 
 func (c *AddLinkCommand) Validate() error {
 	if c.From == nil || c.To == nil {
 		return fmt.Errorf("both 'from' and 'to' must be specified for add link command")
+	}
+
+	var ops []string
+	for _, arg := range c.Args {
+		ops = arg.addOps(ops)
+	}
+	if err := checkDuplicateOps(ops); err != nil {
+		return err
 	}
 
 	if !telemetry.IsSpanExists(*c.From) {
@@ -262,6 +269,15 @@ func (c *AddLinkCommand) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *AddLinkCommand) HasArgAttrs() bool {
+	for _, arg := range c.Args {
+		if len(arg.Attrs) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 type ListCommand struct {
@@ -306,4 +322,15 @@ var (
 
 func ParseCommand(input string) (*Command, error) {
 	return parser.ParseString("", input)
+}
+
+func checkDuplicateOps(ops []string) error {
+	seen := make(map[string]bool)
+	for _, op := range ops {
+		if seen[op] {
+			return fmt.Errorf("duplicated operation: %s", op)
+		}
+		seen[op] = true
+	}
+	return nil
 }

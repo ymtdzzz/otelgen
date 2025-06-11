@@ -15,19 +15,28 @@ type Resource struct {
 	Attributes map[string]string
 }
 
+type Link struct {
+	TargetSpan *Span
+	Attributes map[string]string
+}
+
 type Span struct {
 	Name       string
 	Attributes map[string]string
 	Children   []*Span
 	Resource   *Resource
-	Links      []*Span
+	Links      []*Link
 }
 
 func (s *Span) AddChild(child *Span) {
 	s.Children = append(s.Children, child)
 }
 
-func (s *Span) AddLink(link *Span) {
+func (s *Span) AddLink(target *Span, attributes map[string]string) {
+	link := &Link{
+		TargetSpan: target,
+		Attributes: attributes,
+	}
 	s.Links = append(s.Links, link)
 }
 
@@ -174,7 +183,7 @@ func AddSpanToSpan(parentSpanName, spanName string, attributes map[string]string
 	return &span, nil
 }
 
-func AddLinkToSpan(from, to string) (*Span, error) {
+func AddLinkToSpan(from, to string, attributes map[string]string) (*Span, error) {
 	fromSpan, ok := store.spans[from]
 	if !ok {
 		return nil, fmt.Errorf("from span %s not found", from)
@@ -183,7 +192,7 @@ func AddLinkToSpan(from, to string) (*Span, error) {
 	if !ok {
 		return nil, fmt.Errorf("to span %s not found", to)
 	}
-	fromSpan.AddLink(toSpan)
+	fromSpan.AddLink(toSpan, attributes)
 	return toSpan, nil
 }
 
@@ -222,13 +231,17 @@ func SendAllTraces() {
 		}
 		if len(storedSpan.Links) > 0 {
 			for _, link := range storedSpan.Links {
-				if linkedSpan, exists := spans[link.Name]; exists {
+				if linkedSpan, exists := spans[link.TargetSpan.Name]; exists {
+					attrs := []attribute.KeyValue{}
+					for k, v := range link.Attributes {
+						attrs = append(attrs, attribute.String(k, v))
+					}
 					span.AddLink(trace.Link{
 						SpanContext: linkedSpan.SpanContext(),
-						// TODO: Add attributes
+						Attributes:  attrs,
 					})
 				} else {
-					fmt.Printf("Warning: Linked span '%s' not found for span '%s'.\n", link.Name, name)
+					fmt.Printf("Warning: Linked span '%s' not found for span '%s'.\n", link.TargetSpan.Name, name)
 				}
 			}
 		}

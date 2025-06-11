@@ -15,7 +15,7 @@ func TestHandleAddLink_OK(t *testing.T) {
 	telemetry.CreateTrace("another-trace")
 	telemetry.AddSpanToTrace("another-trace", "another-span", map[string]string{})
 
-	cmd, err := ParseCommand("add link my-span another-span")
+	cmd, err := ParseCommand("add link my-span another-span attributes key=value")
 	assert.Nil(t, err, "ParseCommand should not return an error")
 	assert.NotNil(t, cmd.AddLink, "AddLink command should not be nil")
 
@@ -26,7 +26,8 @@ func TestHandleAddLink_OK(t *testing.T) {
 
 	links := span.Links
 	assert.Len(t, links, 1, "Span should have one link")
-	assert.Equal(t, "another-span", links[0].Name, "Link should point to 'another-span'")
+	assert.Equal(t, "another-span", links[0].TargetSpan.Name, "Link should point to 'another-span'")
+	assert.Equal(t, "value", links[0].Attributes["key"], "Link should have attribute 'key' with value 'value'")
 }
 
 func TestHandleAddLink_NonExistingSpan(t *testing.T) {
