@@ -19,6 +19,8 @@ func handleListCommand(cmd *ListCommand) {
 		listTraces()
 	case "resources":
 		listResources()
+	case "events":
+		listEvents()
 	default:
 		fmt.Printf("Unknown target type for list command: %s\n", *cmd.Type)
 	}
@@ -116,6 +118,46 @@ func listResources() {
 
 			for _, key := range keys {
 				fmt.Printf("    %s: %s\n", key, resource.Attributes[key])
+			}
+		}
+		fmt.Println("----------------------------------------")
+	}
+}
+
+func listEvents() {
+	events := telemetry.GetEvents()
+	if len(events) == 0 {
+		fmt.Println("No events available.")
+		return
+	}
+
+	fmt.Printf("Available events: %d\n", len(events))
+	fmt.Println("----------------------------------------")
+
+	// Sort event names for consistent output
+	names := make([]string, 0, len(events))
+	for name := range events {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		event := events[name]
+		fmt.Printf("Event: %s\n", name)
+
+		if len(event.Attributes) == 0 {
+			fmt.Println("  No attributes")
+		} else {
+			fmt.Println("  Attributes:")
+			// Sort attribute keys for consistent output
+			keys := make([]string, 0, len(event.Attributes))
+			for key := range event.Attributes {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+
+			for _, key := range keys {
+				fmt.Printf("    %s: %s\n", key, event.Attributes[key])
 			}
 		}
 		fmt.Println("----------------------------------------")

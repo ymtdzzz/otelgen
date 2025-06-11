@@ -55,6 +55,7 @@ var commandSuggestions = map[string][]prompt.Suggest{
 	"list": {
 		{Text: "traces", Description: "List all available traces"},
 		{Text: "resources", Description: "List all available resources"},
+		{Text: "events", Description: "List all available events"},
 	},
 }
 

@@ -310,7 +310,7 @@ func (c *AddEventCommand) Validate() error {
 
 type ListCommand struct {
 	List string  `parser:"'list'"`
-	Type *string `parser:"[ @('traces' | 'resources') ]"`
+	Type *string `parser:"[ @('traces' | 'resources' | 'events') ]"`
 }
 
 type SendCommand struct {

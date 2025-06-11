@@ -248,3 +248,103 @@ Resource: resource3
 		})
 	}
 }
+
+func TestListEvents(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		setupFunc func()
+		want      string
+	}{
+		{
+			name:  "list events with no events",
+			input: "list events",
+			setupFunc: func() {
+				telemetry.InitStore()
+			},
+			want: "No events available.\n",
+		},
+		{
+			name:  "list events with one event without attributes",
+			input: "list events",
+			setupFunc: func() {
+				telemetry.InitStore()
+				telemetry.CreateEvent("empty-event", map[string]string{})
+			},
+			want: `Available events: 1
+----------------------------------------
+Event: empty-event
+  No attributes
+----------------------------------------
+`,
+		},
+		{
+			name:  "list events with one event with attributes",
+			input: "list events",
+			setupFunc: func() {
+				telemetry.InitStore()
+				telemetry.CreateEvent("test-event", map[string]string{
+					"type":      "error",
+					"level":     "critical",
+					"component": "database",
+				})
+			},
+			want: `Available events: 1
+----------------------------------------
+Event: test-event
+  Attributes:
+    component: database
+    level: critical
+    type: error
+----------------------------------------
+`,
+		},
+		{
+			name:  "list events with multiple events",
+			input: "list events",
+			setupFunc: func() {
+				telemetry.InitStore()
+
+				telemetry.CreateEvent("event1", map[string]string{
+					"type": "info",
+					"source": "api",
+				})
+
+				telemetry.CreateEvent("event2", map[string]string{
+					"type": "error",
+					"source": "database",
+				})
+
+				telemetry.CreateEvent("event3", map[string]string{})
+			},
+			want: `Available events: 3
+----------------------------------------
+Event: event1
+  Attributes:
+    source: api
+    type: info
+----------------------------------------
+Event: event2
+  Attributes:
+    source: database
+    type: error
+----------------------------------------
+Event: event3
+  No attributes
+----------------------------------------
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupFunc()
+
+			output := captureOutput(func() {
+				Executor(tt.input)
+			})
+
+			assert.Equal(t, tt.want, output)
+		})
+	}
+}
