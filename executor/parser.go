@@ -233,6 +233,15 @@ func (s *SetCommand) HasArgResource() bool {
 	return false
 }
 
+func (s *SetCommand) HasArgAttrs() bool {
+	for _, arg := range s.Args {
+		if arg.SetCreateArg != nil && len(arg.SetCreateArg.Attrs) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 type AddLinkArg struct {
 	Attrs []*KeyValue `parser:"('attributes' @@ { ',' @@ } )"`
 }

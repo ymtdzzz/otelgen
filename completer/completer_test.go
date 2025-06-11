@@ -288,7 +288,11 @@ func TestCompleteSetSpan(t *testing.T) {
 		},
 		{
 			input: "set span my-span ",
-			want:  commandSuggestions["set_span_operations"],
+			want: []prompt.Suggest{
+				{Text: "name", Description: "Set a new name for the span"},
+				{Text: "resource", Description: "Set a resource for the span"},
+				{Text: "attributes", Description: "Set attributes for the span"},
+			},
 		},
 		{
 			input: "set span my-span n",
@@ -304,6 +308,14 @@ func TestCompleteSetSpan(t *testing.T) {
 			input: "set span my-span name new-span-name ",
 			want: []prompt.Suggest{
 				{Text: "resource", Description: "Set a resource for the span"},
+				{Text: "attributes", Description: "Set attributes for the span"},
+			},
+		},
+		{
+			input: "set span my-span attributes key-value ",
+			want: []prompt.Suggest{
+				{Text: "name", Description: "Set a new name for the span"},
+				{Text: "resource", Description: "Set a resource for the span"},
 			},
 		},
 		{
@@ -315,12 +327,15 @@ func TestCompleteSetSpan(t *testing.T) {
 		},
 		{
 			input: "set span my-span name new-span-name resource me-resource ",
-			want:  []prompt.Suggest{},
+			want: []prompt.Suggest{
+				{Text: "attributes", Description: "Set attributes for the span"},
+			},
 		},
 		{
 			input: "set span my-span resource my-resource ",
 			want: []prompt.Suggest{
 				{Text: "name", Description: "Set a new name for the span"},
+				{Text: "attributes", Description: "Set attributes for the span"},
 			},
 		},
 		{
@@ -329,7 +344,9 @@ func TestCompleteSetSpan(t *testing.T) {
 		},
 		{
 			input: "set span my-span resource my-resource name new-span-name ",
-			want:  []prompt.Suggest{},
+			want: []prompt.Suggest{
+				{Text: "attributes", Description: "Set attributes for the span"},
+			},
 		},
 	}
 
@@ -374,7 +391,10 @@ func TestCompleteSetResource(t *testing.T) {
 		},
 		{
 			input: "set resource my-resource ",
-			want:  commandSuggestions["set_resource_operations"],
+			want: []prompt.Suggest{
+				{Text: "name", Description: "Set a new name for the resource"},
+				{Text: "attributes", Description: "Set attributes for the resource"},
+			},
 		},
 		{
 			input: "set resource my-resource n",
@@ -385,6 +405,12 @@ func TestCompleteSetResource(t *testing.T) {
 		{
 			input: "set resource my-resource name ",
 			want:  []prompt.Suggest{},
+		},
+		{
+			input: "set resource my-resource attributes key=value ",
+			want: []prompt.Suggest{
+				{Text: "name", Description: "Set a new name for the resource"},
+			},
 		},
 	}
 
@@ -423,7 +449,10 @@ func TestCompleteSetEvent(t *testing.T) {
 		},
 		{
 			input: "set event my-event ",
-			want:  commandSuggestions["set_event_operations"],
+			want: []prompt.Suggest{
+				{Text: "name", Description: "Set a new name for the event"},
+				{Text: "attributes", Description: "Set attributes for the event"},
+			},
 		},
 		{
 			input: "set event my-event n",
@@ -434,6 +463,12 @@ func TestCompleteSetEvent(t *testing.T) {
 		{
 			input: "set event my-event name ",
 			want:  []prompt.Suggest{},
+		},
+		{
+			input: "set event my-event name new-event-name ",
+			want: []prompt.Suggest{
+				{Text: "attributes", Description: "Set attributes for the event"},
+			},
 		},
 	}
 

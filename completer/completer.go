@@ -38,16 +38,6 @@ var commandSuggestions = map[string][]prompt.Suggest{
 		{Text: "span", Description: "Update a span"},
 		{Text: "event", Description: "Update an event"},
 	},
-	"set_span_operations": {
-		{Text: "name", Description: "Set a new name for the span"},
-		{Text: "resource", Description: "Set a resource for the span"},
-	},
-	"set_resource_operations": {
-		{Text: "name", Description: "Set a new name for the resource"},
-	},
-	"set_event_operations": {
-		{Text: "name", Description: "Set a new name for the event"},
-	},
 	"add_type": {
 		{Text: "link", Description: "Add a link to the span"},
 		{Text: "event", Description: "Add an event to the span"},
@@ -166,53 +156,60 @@ func (c *completerContext) completeSet() []prompt.Suggest {
 }
 
 func (c *completerContext) completeSetSpan() []prompt.Suggest {
-	// 'set span ' or 'set span sp...'
-	if (c.parsed.Set.Name == nil && strings.HasSuffix(c.inputText, " ")) || c.isInputInProgress("span") {
+	if c.isInputInProgress("span") {
 		return prompt.FilterHasPrefix(convertSpansToSuggestions(), c.currentWord, false)
-	}
-	if len(c.parsed.Set.Args) == 0 {
-		if !c.isInputInProgress("name") && !c.isInputInProgress("resource") {
-			return prompt.FilterHasPrefix(commandSuggestions["set_span_operations"], c.currentWord, false)
-		}
 	}
 	if c.isInputInProgress("resource") {
 		return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
 	}
 
 	suggesstions := []prompt.Suggest{}
-	if !c.isInputInProgress("name") && !c.isInputInProgress("resource") {
+	if !c.isInputInProgress("name") && !c.isInputInProgress("resource") && !c.isInputInProgress("attributes") {
 		if !c.parsed.Set.HasArgName() {
 			suggesstions = append(suggesstions, prompt.Suggest{Text: "name", Description: "Set a new name for the span"})
 		}
 		if !c.parsed.Set.HasArgResource() {
 			suggesstions = append(suggesstions, prompt.Suggest{Text: "resource", Description: "Set a resource for the span"})
 		}
+		if !c.parsed.Set.HasArgAttrs() {
+			suggesstions = append(suggesstions, prompt.Suggest{Text: "attributes", Description: "Set attributes for the span"})
+		}
 	}
 	return prompt.FilterHasPrefix(suggesstions, c.currentWord, false)
 }
 
 func (c *completerContext) completeSetResource() []prompt.Suggest {
-	// 'set resource ' or 'set resource sv...'
-	if (c.parsed.Set.Name == nil && strings.HasSuffix(c.inputText, " ")) || c.isInputInProgress("resource") {
+	if c.isInputInProgress("resource") {
 		return prompt.FilterHasPrefix(convertResourcesToSuggestions(), c.currentWord, false)
 	}
-	if !c.isInputInProgress("name") {
-		return prompt.FilterHasPrefix(commandSuggestions["set_resource_operations"], c.currentWord, false)
-	}
 
-	return []prompt.Suggest{}
+	suggesstions := []prompt.Suggest{}
+	if !c.isInputInProgress("name") && !c.isInputInProgress("attributes") {
+		if !c.parsed.Set.HasArgName() {
+			suggesstions = append(suggesstions, prompt.Suggest{Text: "name", Description: "Set a new name for the resource"})
+		}
+		if !c.parsed.Set.HasArgAttrs() {
+			suggesstions = append(suggesstions, prompt.Suggest{Text: "attributes", Description: "Set attributes for the resource"})
+		}
+	}
+	return prompt.FilterHasPrefix(suggesstions, c.currentWord, false)
 }
 
 func (c *completerContext) completeSetEvent() []prompt.Suggest {
-	// 'set event ' or 'set event ev...'
-	if (c.parsed.Set.Name == nil && strings.HasSuffix(c.inputText, " ")) || c.isInputInProgress("event") {
+	if c.isInputInProgress("event") {
 		return prompt.FilterHasPrefix(convertEventsToSuggestions(), c.currentWord, false)
 	}
-	if !c.isInputInProgress("name") {
-		return prompt.FilterHasPrefix(commandSuggestions["set_event_operations"], c.currentWord, false)
-	}
 
-	return []prompt.Suggest{}
+	suggesstions := []prompt.Suggest{}
+	if !c.isInputInProgress("name") && !c.isInputInProgress("attributes") {
+		if !c.parsed.Set.HasArgName() {
+			suggesstions = append(suggesstions, prompt.Suggest{Text: "name", Description: "Set a new name for the event"})
+		}
+		if !c.parsed.Set.HasArgAttrs() {
+			suggesstions = append(suggesstions, prompt.Suggest{Text: "attributes", Description: "Set attributes for the event"})
+		}
+	}
+	return prompt.FilterHasPrefix(suggesstions, c.currentWord, false)
 }
 
 func (c *completerContext) completeAddLink() []prompt.Suggest {
